@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import UploadService from "../services/FileUploadService";
+import { v4 as uuidv4 } from "uuid";
 import IFile from "../types/File";
 import { ImageItem } from "../types/ImageItem";
-import FileUploadService from "../services/FileUploadService";
 
 const ImagesUpload: React.FC = () => {
-  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [pendingImageItems, setPendingImageItems] = useState<ImageItem[]>([]);
   const [uploadedImageItems, setUploadedImageItems] = useState<ImageItem[]>([]);
   const [downloadedImageItems, setDownloadedImageItems] = useState<ImageItem[]>(
@@ -13,107 +12,108 @@ const ImagesUpload: React.FC = () => {
   );
 
   useEffect(() => {
-    UploadService.getFiles().then((response) => {
-      let data: IFile[] = response.data;
-      let imageItems = data.map(({ id, url, name }) => ({
-        id,
-        url,
-        name,
-        uploadProgress: 1,
-        uploadDone: true,
-        error: false,
-      }));
-      setDownloadedImageItems(imageItems);
-    });
+    const fetchImages = async () => {
+      try {
+        const response = await UploadService.getFiles();
+        const data: IFile[] = response.data;
+        const imageItems = data.map(({ id, url, name }) => ({
+          id,
+          remoteId: id,
+          url,
+          name,
+          uploadProgress: 100,
+          uploadDone: true,
+          error: false,
+        }));
+        setDownloadedImageItems(imageItems);
+      } catch (error) {
+        console.error("Failed to fetch files:", error);
+      }
+    };
+
+    fetchImages();
   }, []);
 
   const selectImages = (event: React.ChangeEvent<HTMLInputElement>) => {
-    let imageItems: ImageItem[] = [];
-    let files = event.target.files;
+    const files = event.target.files;
+    if (!files) return;
 
-    if (files) {
-      for (let i = 0; i < files.length; i++) {
-        let file = files[i];
-        imageItems.push({
-          id: `new-file-${i}`,
-          url: URL.createObjectURL(file),
-          name: file.name,
-          uploadProgress: 0,
-          uploadDone: false,
-          error: false,
-        });
-      }
+    const newPendingImageItems = Array.from(files).map((file) => {
+      const id = uuidv4();
+      return {
+        id,
+        file,
+        url: URL.createObjectURL(file),
+        name: file.name,
+        uploadProgress: 0,
+        uploadDone: false,
+        error: false,
+      };
+    });
 
-      setSelectedFiles(files);
-      setPendingImageItems(imageItems);
-    }
+    setPendingImageItems(newPendingImageItems);
   };
 
-  const upload = (index: number, file: File) => {
-    const pendingItemId = pendingImageItems[index].id;
-    return UploadService.upload(file, (event) => {
-      setPendingImageItems((_pendingImageItems) => {
-        _pendingImageItems = [..._pendingImageItems];
-        _pendingImageItems[index] = {
-          ..._pendingImageItems[index],
-          uploadProgress: Math.round((100 * event.loaded) / event.total),
-        };
-        return _pendingImageItems;
-      });
+  const upload = useCallback((imageItem: ImageItem, file: File) => {
+    UploadService.upload(file, (event) => {
+      setPendingImageItems((currentItems) =>
+        currentItems.map((item) =>
+          item.id === imageItem.id
+            ? {
+                ...item,
+                uploadProgress: Math.round((100 * event.loaded) / event.total),
+              }
+            : item
+        )
+      );
     })
       .then((response) => {
-        let { id, url } = response.data;
-        setPendingImageItems((_pendingImageItems) => {
-          return _pendingImageItems.filter((item) => item.id !== pendingItemId);
-        });
-        setUploadedImageItems((_uploadedImageItems) => {
-          _uploadedImageItems = [..._uploadedImageItems];
-          _uploadedImageItems.push({
-            id,
+        const { id, url } = response.data;
+        setPendingImageItems((currentItems) =>
+          currentItems.filter((item) => item.id !== imageItem.id)
+        );
+        setUploadedImageItems((currentItems) => [
+          ...currentItems,
+          {
+            ...imageItem,
+            remoteId: id,
             url,
-            name: "",
             uploadDone: true,
             uploadProgress: 100,
-            error: false,
-          });
-          return _uploadedImageItems;
-        });
+          },
+        ]);
       })
-      .catch((error: any) => {
-        setPendingImageItems((_pendingImageItems) => {
-          _pendingImageItems = [..._pendingImageItems];
-          _pendingImageItems[index] = {
-            ..._pendingImageItems[index],
-            uploadProgress: 0,
-            uploadDone: false,
-            error: error,
-          };
-          return _pendingImageItems;
-        });
+      .catch((error) => {
+        console.error("Upload error for file", imageItem.name, error);
+        setPendingImageItems((currentItems) =>
+          currentItems.map((item) =>
+            item.id === imageItem.id
+              ? { ...item, error: true, uploadProgress: 0, uploadDone: false }
+              : item
+          )
+        );
       });
-  };
+  }, []);
 
   const uploadImages = () => {
-    if (selectedFiles != null) {
-      const files = Array.from(selectedFiles);
-
-      files.forEach((file, index) => {
-        upload(index, file);
-      });
-    }
+    pendingImageItems.forEach((imageItem) => {
+      if (imageItem.file) {
+        upload(imageItem, imageItem.file); // Use the stored File object
+      }
+    });
   };
 
-  const deleteImage = (id: string) => async () => {
+  const deleteImage = async (remoteId: string) => {
     try {
-      await FileUploadService.deleteFile(id);
-      const removeItemWithId = (array: ImageItem[]) =>
-        array.filter((item) => item.id !== id);
+      await UploadService.deleteFile(remoteId);
+      const filterItems = (array: ImageItem[]) =>
+        array.filter((item) => item.remoteId !== remoteId);
 
-      setPendingImageItems(removeItemWithId);
-      setUploadedImageItems(removeItemWithId);
-      setDownloadedImageItems(removeItemWithId);
-    } catch (err) {
-      console.error("Could not delete image", err);
+      setPendingImageItems(filterItems);
+      setUploadedImageItems(filterItems);
+      setDownloadedImageItems(filterItems);
+    } catch (error) {
+      console.error("Could not delete image", error);
     }
   };
 
@@ -134,7 +134,7 @@ const ImagesUpload: React.FC = () => {
         <div className="col-4">
           <button
             className="btn btn-success btn-sm"
-            disabled={!selectedFiles}
+            disabled={!pendingImageItems.length}
             onClick={uploadImages}
           >
             Upload
@@ -184,7 +184,11 @@ const ImagesUpload: React.FC = () => {
                 </div>
                 <p>Success: {`${imageItem.uploadDone}`}</p>
                 <p>Error: {`${imageItem.error}`}</p>
-                <button onClick={deleteImage(imageItem.id)}>Delete</button>
+                {imageItem.remoteId && (
+                  <button onClick={() => deleteImage(imageItem.remoteId!)}>
+                    Delete
+                  </button>
+                )}
                 <img
                   className="preview"
                   src={imageItem.url}
