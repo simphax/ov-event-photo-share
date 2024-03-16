@@ -1,16 +1,17 @@
 // server.js
-import express from "express";
-import cors from "cors";
-import multer from "multer";
-import * as fs from "node:fs/promises";
-import path from "path";
-import sharp from "sharp";
+const express = require("express");
+const cors = require("cors");
+const multer = require("multer");
+const fs = require("node:fs/promises");
+const path = require("path");
+const sharp = require("sharp");
 
 const UPLOAD_FOLDER_PATH = process.env.UPLOAD_FOLDER_PATH || "uploads/";
 const THUMBNAILS_FOLDER_PATH =
   process.env.THUMBNAILS_FOLDER_PATH || "thumbnails/";
 const SERVER_PORT = process.env.SERVER_PORT || 5050;
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:5050";
+const SERVER_BASE_PATH = process.env.SERVER_BASE_PATH || "/";
 
 const corsOptions = {
   origin: "*",
@@ -21,6 +22,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors(corsOptions));
+const router = express.Router();
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype == "image/jpeg" || file.mimetype == "image/png") {
@@ -32,7 +34,7 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ dest: UPLOAD_FOLDER_PATH, fileFilter });
 
-app.post("/gallery", upload.single("file"), async (req, res) => {
+router.post("/gallery", upload.single("file"), async (req, res) => {
   console.log(req.file);
 
   try {
@@ -41,7 +43,10 @@ app.post("/gallery", upload.single("file"), async (req, res) => {
       .webp()
       .toBuffer();
 
-    await fs.writeFile(`thumbnails/${req.file.filename}.webp`, resizedImage);
+    await fs.writeFile(
+      `${THUMBNAILS_FOLDER_PATH}/${req.file.filename}.webp`,
+      resizedImage
+    );
 
     return res.status(201).json({
       id: req.file.filename,
@@ -54,11 +59,12 @@ app.post("/gallery", upload.single("file"), async (req, res) => {
     console.error(error);
     return res.status(500).json({
       message: "Error creating thumbnail",
+      error: JSON.stringify(error),
     });
   }
 });
 
-app.get("/gallery", async (req, res) => {
+router.get("/gallery", async (req, res) => {
   try {
     const files = await fs.readdir(THUMBNAILS_FOLDER_PATH);
 
@@ -76,7 +82,7 @@ app.get("/gallery", async (req, res) => {
   }
 });
 
-app.get("/gallery/:fileName", async (req, res) => {
+router.get("/gallery/:fileName", async (req, res) => {
   let fileName = req.params.fileName;
 
   //Sanitation
@@ -97,7 +103,7 @@ app.get("/gallery/:fileName", async (req, res) => {
   }
 });
 
-app.delete("/gallery/:id", async (req, res) => {
+router.delete("/gallery/:id", async (req, res) => {
   let fileName = `${req.params.id}.webp`;
 
   //Sanitation
@@ -137,7 +143,9 @@ app.delete("/gallery/:id", async (req, res) => {
   });
 });
 
-app.use('/', express.static(path.resolve("frontend/build")));
+router.use("/", express.static(path.resolve("public")));
+
+app.use(SERVER_BASE_PATH, router);
 
 app.listen(SERVER_PORT, () => {
   console.log(`Server started on ${SERVER_PORT}`);
