@@ -54,7 +54,6 @@ const ImagesUpload: React.FC = () => {
     });
 
     setPendingImageItems(newPendingImageItems);
-    uploadImages();
   };
 
   const upload = useCallback((imageItem: ImageItem, file: File) => {
@@ -122,29 +121,36 @@ const ImagesUpload: React.FC = () => {
     }
   };
 
+  let combinedProgress = 0;
+
+  if (pendingImageItems.length) {
+    combinedProgress = pendingImageItems.reduce((acc, item) => {
+      return acc + item.uploadProgress;
+    }, 0);
+    combinedProgress = combinedProgress / pendingImageItems.length;
+  }
+
   return (
     <div>
-      <div className="row my-3">
-        <div className="col-8">
-          <label className="btn btn-default p-0">
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={selectImages}
-            />
-          </label>
-        </div>
-
-        <div className="col-4">
-          <button
-            className="btn btn-success btn-sm"
-            disabled={!pendingImageItems.length}
-            onClick={uploadImages}
-          >
-            Try again
-          </button>
-        </div>
+      <label className="btn btn-default p-0">
+        <input type="file" multiple accept="image/*" onChange={selectImages} />
+      </label>
+      <button
+        className="btn btn-success btn-sm"
+        disabled={!pendingImageItems.length}
+        onClick={uploadImages}
+      >
+        Upload
+      </button>
+      <div
+        className="progress-bar"
+        role="progressbar"
+        aria-valuenow={combinedProgress}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        style={{ width: combinedProgress + "%" }}
+      >
+        {combinedProgress}%
       </div>
 
       <AnimatePresence>
