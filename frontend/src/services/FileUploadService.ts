@@ -1,6 +1,11 @@
 import http from "../http-common";
 
-const upload = (file: File, onUploadProgress: (progressEvent: any) => void): Promise<any> => {
+const delay = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+
+const upload = async (file: File, onUploadProgress: (progressEvent: any) => void): Promise<any> => {
   let formData = new FormData();
 
   formData.append("file", file);

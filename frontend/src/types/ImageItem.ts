@@ -5,6 +5,8 @@ export type ImageItem = {
     uploadProgress: number,
     uploadDone: boolean,
     error: any,
+    width?: number,
+    height?: number,
     remoteId?: string,
     file?: File
   }

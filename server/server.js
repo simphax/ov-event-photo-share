@@ -9,6 +9,7 @@ const sharp = require("sharp");
 const UPLOAD_FOLDER_PATH = process.env.UPLOAD_FOLDER_PATH || "uploads/";
 const THUMBNAILS_FOLDER_PATH =
   process.env.THUMBNAILS_FOLDER_PATH || "thumbnails/";
+const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
 const SERVER_PORT = process.env.SERVER_PORT || 5050;
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:5050";
 const SERVER_BASE_PATH = process.env.SERVER_BASE_PATH || "/";
@@ -38,14 +39,35 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
   console.log(req.file);
 
   try {
-    let resizedImage = await sharp(req.file.path)
+    const sharpFile = await sharp(req.file.path);
+    const resizedImage = await sharpFile
+      .rotate()
       .resize(200, 200, { fit: "inside" })
-      .webp()
-      .toBuffer();
+      .webp();
+
+    const resizedImageBuffer = await resizedImage.toBuffer();
+
+    const thumbnailFilePath = `${THUMBNAILS_FOLDER_PATH}/${req.file.filename}.webp`
 
     await fs.writeFile(
-      `${THUMBNAILS_FOLDER_PATH}/${req.file.filename}.webp`,
-      resizedImage
+      thumbnailFilePath,
+      resizedImageBuffer
+    );
+    const metadata = await sharp(
+      thumbnailFilePath
+    ).metadata();
+    await fs.writeFile(
+      `${METADATA_FOLDER_PATH}/${req.file.filename}.json`,
+      JSON.stringify(
+        {
+          size: metadata.size,
+          width: metadata.width,
+          height: metadata.height,
+          user: "default-user",
+        },
+        null,
+        2
+      )
     );
 
     return res.status(201).json({
@@ -53,6 +75,10 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
       url: `${SERVER_URL}/gallery/${encodeURIComponent(
         req.file.filename
       )}.webp`,
+      size: metadata.size,
+      width: metadata.width,
+      height: metadata.height,
+      user: "default-user",
       message: "File uploded successfully",
     });
   } catch (error) {
@@ -70,14 +96,31 @@ router.get("/gallery", async (req, res) => {
 
     const fileInfo = files.map((fileName) => {
       return {
-        id: fileName,
+        id: fileName.slice(0, -5),
         url: `${SERVER_URL}/gallery/${encodeURIComponent(fileName)}`,
         name: fileName,
       };
     });
+    for (let i = 0; i < fileInfo.length; i++) {
+      try {
+        let metadata = await fs.readFile(
+          METADATA_FOLDER_PATH + "/" + fileInfo[i].id + ".json",
+          "utf8"
+        );
+        metadata = JSON.parse(metadata);
+        fileInfo[i] = {
+          ...fileInfo[i],
+          ...metadata,
+        };
+      } catch (err) {
+        console.error(err);
+        console.error(`Could not get metadata for ${fileInfo[i].id}`);
+      }
+    }
 
     res.json(fileInfo);
   } catch (err) {
+    console.error(err);
     return res.status(500).send("Unable to list files.");
   }
 });

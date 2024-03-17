@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import UploadService from "../services/FileUploadService";
 import { v4 as uuidv4 } from "uuid";
 import IFile from "../types/File";
 import { ImageItem } from "../types/ImageItem";
+import ImageGallery from "./ImageGallery";
 import "./ImagesUpload.css";
-import { motion, AnimatePresence } from "framer-motion";
 
 const ImagesUpload: React.FC = () => {
   const [pendingImageItems, setPendingImageItems] = useState<ImageItem[]>([]);
@@ -13,17 +13,23 @@ const ImagesUpload: React.FC = () => {
     []
   );
 
+  const [uploadInProgress, setUploadInProgress] = useState<boolean>(false);
+  const [itemsCountToUpload, setItemsCountToUpload] = useState<number>(0);
+  const uploadProgress = useRef<{ [imageItemId: string]: number }>({});
+
   useEffect(() => {
     const fetchImages = async () => {
       try {
         const response = await UploadService.getFiles();
         const data: IFile[] = response.data;
-        const imageItems = data.map(({ id, url, name }) => ({
+        const imageItems = data.map(({ id, url, name, width, height }) => ({
           id,
           remoteId: id,
           url,
           name,
-          uploadProgress: 100,
+          width,
+          height,
+          uploadProgress: 1,
           uploadDone: true,
           error: false,
         }));
@@ -32,9 +38,28 @@ const ImagesUpload: React.FC = () => {
         console.error("Failed to fetch files:", error);
       }
     };
-
     fetchImages();
   }, []);
+
+  const updateProgress = () => {
+    setPendingImageItems((currentItems) =>
+      currentItems.map((item) => ({
+        ...item,
+        uploadProgress: uploadProgress.current[item.id] || 0,
+      }))
+    );
+  };
+
+  useEffect(() => {
+    let interval: NodeJS.Timer;
+    if (uploadInProgress) {
+      interval = setInterval(() => {
+        updateProgress();
+      }, 250);
+    }
+
+    return () => clearInterval(interval);
+  }, [uploadInProgress]);
 
   const selectImages = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -56,33 +81,26 @@ const ImagesUpload: React.FC = () => {
     setPendingImageItems(newPendingImageItems);
   };
 
-  const upload = useCallback((imageItem: ImageItem, file: File) => {
-    UploadService.upload(file, (event) => {
-      setPendingImageItems((currentItems) =>
-        currentItems.map((item) =>
-          item.id === imageItem.id
-            ? {
-                ...item,
-                uploadProgress: Math.round((100 * event.loaded) / event.total),
-              }
-            : item
-        )
-      );
+  const upload = useCallback(async (imageItem: ImageItem, file: File) => {
+    return UploadService.upload(file, (event) => {
+      uploadProgress.current[imageItem.id] = event.loaded / event.total;
     })
       .then((response) => {
-        const { id, url } = response.data;
+        const { id, url, width, height } = response.data;
         setPendingImageItems((currentItems) =>
           currentItems.filter((item) => item.id !== imageItem.id)
         );
         setUploadedImageItems((currentItems) => [
-          ...currentItems,
           {
             ...imageItem,
             remoteId: id,
+            width,
+            height,
             url,
             uploadDone: true,
             uploadProgress: 100,
           },
+          ...currentItems,
         ]);
       })
       .catch((error) => {
@@ -97,12 +115,17 @@ const ImagesUpload: React.FC = () => {
       });
   }, []);
 
-  const uploadImages = () => {
-    pendingImageItems.forEach((imageItem) => {
-      if (imageItem.file) {
-        upload(imageItem, imageItem.file); // Use the stored File object
-      }
-    });
+  const uploadImages = async () => {
+    try {
+      setItemsCountToUpload(pendingImageItems.length);
+      setUploadInProgress(true);
+      await Promise.all(
+        pendingImageItems.map((imageItem) => upload(imageItem, imageItem.file!))
+      );
+    } catch (err) {
+      console.error(err);
+    }
+    setUploadInProgress(false);
   };
 
   const deleteImage = async (imageItem: ImageItem) => {
@@ -121,13 +144,16 @@ const ImagesUpload: React.FC = () => {
     }
   };
 
-  let combinedProgress = 0;
+  let combinedProgress = 100;
 
   if (pendingImageItems.length) {
     combinedProgress = pendingImageItems.reduce((acc, item) => {
       return acc + item.uploadProgress;
     }, 0);
-    combinedProgress = combinedProgress / pendingImageItems.length;
+    combinedProgress =
+      (combinedProgress + (itemsCountToUpload - pendingImageItems.length)) /
+      itemsCountToUpload;
+    combinedProgress = Math.round(100 * combinedProgress);
   }
 
   return (
@@ -142,79 +168,25 @@ const ImagesUpload: React.FC = () => {
       >
         Upload
       </button>
-      <div
-        className="progress-bar"
-        role="progressbar"
-        aria-valuenow={combinedProgress}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        style={{ width: combinedProgress + "%" }}
-      >
-        {combinedProgress}%
+      <div className="progress">
+        <div
+          className="progress__bar"
+          role="progressbar"
+          aria-valuenow={combinedProgress}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          style={{ width: combinedProgress + "%" }}
+        ></div>
       </div>
+      {pendingImageItems.map((imageItem, index) => (
+        <span key={imageItem.id}></span>
+      ))}
 
-      <AnimatePresence>
-        <motion.ul layout className="image-gallery">
-          {pendingImageItems.map((imageItem, index) => {
-            return (
-              <motion.li
-                layout
-                className={`image-gallery__item image-gallery__item--pending${
-                  imageItem.uploadDone ? " image-gallery__item--success" : ""
-                }${imageItem.error ? " image-gallery__item--error" : ""}`}
-                onClick={() => deleteImage(imageItem)}
-                key={imageItem.id}
-              >
-                <div
-                  className="progress-bar"
-                  role="progressbar"
-                  aria-valuenow={imageItem.uploadProgress}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  style={{ width: imageItem.uploadProgress + "%" }}
-                >
-                  {imageItem.uploadProgress}%
-                </div>
-                <img src={imageItem.url} alt={imageItem.name} />
-              </motion.li>
-            );
-          })}
-          {uploadedImageItems.map((imageItem, index) => {
-            return (
-              <motion.li
-                layout
-                className={`image-gallery__item${
-                  imageItem.uploadDone ? " image-gallery__item--success" : ""
-                }${imageItem.error ? " image-gallery__item--error" : ""}`}
-                onClick={() => deleteImage(imageItem)}
-                key={imageItem.id}
-              >
-                <div
-                  className="progress-bar progress-bar-info"
-                  role="progressbar"
-                  aria-valuenow={imageItem.uploadProgress}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  style={{ width: imageItem.uploadProgress + "%" }}
-                >
-                  {imageItem.uploadProgress}%
-                </div>
-                <img src={imageItem.url} alt={imageItem.name} />
-              </motion.li>
-            );
-          })}
-          {downloadedImageItems.map((imageItem, index) => (
-            <motion.li
-              layout
-              className={`image-gallery__item`}
-              onClick={() => deleteImage(imageItem)}
-              key={imageItem.id}
-            >
-              <img src={imageItem.url} alt={imageItem.name} />
-            </motion.li>
-          ))}
-        </motion.ul>
-      </AnimatePresence>
+      <ImageGallery
+        onDeleteImage={deleteImage}
+        uploadedImageItems={uploadedImageItems}
+        downloadedImageItems={downloadedImageItems}
+      />
     </div>
   );
 };

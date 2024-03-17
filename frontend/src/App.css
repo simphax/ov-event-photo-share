@@ -1,7 +1,5 @@
 .container{
-  width: 600px;
-}
-
-.preview {
-  max-width: 200px;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 20px;
 }
