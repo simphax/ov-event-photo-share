@@ -1,0 +1,41 @@
+.image-gallery {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.image-gallery__item {
+  position: relative;
+  display: inline-block;
+  border: 2px solid transparent;
+  box-sizing: content-box;
+  max-width: 200px;
+  max-height: 200px;
+}
+
+.image-gallery__item--pending {
+  max-width: 100px;
+  max-height: 100px;
+}
+
+
+.image-gallery__item--success {
+  border-color: green;
+}
+
+.image-gallery__item--error {
+  border-color: red;
+}
+
+.image-gallery__item img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.image-gallery__item .progress-bar {
+  position: absolute;
+  width: 100%;
+  background-color: white;
+  color: black;
+  font-size: 12px;
+}

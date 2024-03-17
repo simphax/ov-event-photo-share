@@ -3,6 +3,8 @@ import UploadService from "../services/FileUploadService";
 import { v4 as uuidv4 } from "uuid";
 import IFile from "../types/File";
 import { ImageItem } from "../types/ImageItem";
+import "./ImagesUpload.css";
+import { motion, AnimatePresence } from "framer-motion";
 
 const ImagesUpload: React.FC = () => {
   const [pendingImageItems, setPendingImageItems] = useState<ImageItem[]>([]);
@@ -52,6 +54,7 @@ const ImagesUpload: React.FC = () => {
     });
 
     setPendingImageItems(newPendingImageItems);
+    uploadImages();
   };
 
   const upload = useCallback((imageItem: ImageItem, file: File) => {
@@ -103,11 +106,13 @@ const ImagesUpload: React.FC = () => {
     });
   };
 
-  const deleteImage = async (remoteId: string) => {
+  const deleteImage = async (imageItem: ImageItem) => {
     try {
-      await UploadService.deleteFile(remoteId);
+      if (imageItem.remoteId)
+        await UploadService.deleteFile(imageItem.remoteId);
+
       const filterItems = (array: ImageItem[]) =>
-        array.filter((item) => item.remoteId !== remoteId);
+        array.filter((item) => item.id !== imageItem.id);
 
       setPendingImageItems(filterItems);
       setUploadedImageItems(filterItems);
@@ -137,19 +142,25 @@ const ImagesUpload: React.FC = () => {
             disabled={!pendingImageItems.length}
             onClick={uploadImages}
           >
-            Upload
+            Try again
           </button>
         </div>
       </div>
 
-      <div className="card mt-3">
-        <ul className="list-group list-group-flush">
+      <AnimatePresence>
+        <motion.ul layout className="image-gallery">
           {pendingImageItems.map((imageItem, index) => {
             return (
-              <li className="list-group-item" key={index}>
-                <p>To upload</p>
+              <motion.li
+                layout
+                className={`image-gallery__item image-gallery__item--pending${
+                  imageItem.uploadDone ? " image-gallery__item--success" : ""
+                }${imageItem.error ? " image-gallery__item--error" : ""}`}
+                onClick={() => deleteImage(imageItem)}
+                key={imageItem.id}
+              >
                 <div
-                  className="progress-bar progress-bar-info"
+                  className="progress-bar"
                   role="progressbar"
                   aria-valuenow={imageItem.uploadProgress}
                   aria-valuemin={0}
@@ -158,20 +169,20 @@ const ImagesUpload: React.FC = () => {
                 >
                   {imageItem.uploadProgress}%
                 </div>
-                <p>Success: {`${imageItem.uploadDone}`}</p>
-                <p>Error: {`${imageItem.error}`}</p>
-                <img
-                  className="preview"
-                  src={imageItem.url}
-                  alt={"image-" + index}
-                />
-              </li>
+                <img src={imageItem.url} alt={imageItem.name} />
+              </motion.li>
             );
           })}
           {uploadedImageItems.map((imageItem, index) => {
             return (
-              <li className="list-group-item" key={index}>
-                <p>Uploaded</p>
+              <motion.li
+                layout
+                className={`image-gallery__item${
+                  imageItem.uploadDone ? " image-gallery__item--success" : ""
+                }${imageItem.error ? " image-gallery__item--error" : ""}`}
+                onClick={() => deleteImage(imageItem)}
+                key={imageItem.id}
+              >
                 <div
                   className="progress-bar progress-bar-info"
                   role="progressbar"
@@ -182,31 +193,22 @@ const ImagesUpload: React.FC = () => {
                 >
                   {imageItem.uploadProgress}%
                 </div>
-                <p>Success: {`${imageItem.uploadDone}`}</p>
-                <p>Error: {`${imageItem.error}`}</p>
-                {imageItem.remoteId && (
-                  <button onClick={() => deleteImage(imageItem.remoteId!)}>
-                    Delete
-                  </button>
-                )}
-                <img
-                  className="preview"
-                  src={imageItem.url}
-                  alt={"image-" + index}
-                />
-              </li>
+                <img src={imageItem.url} alt={imageItem.name} />
+              </motion.li>
             );
           })}
           {downloadedImageItems.map((imageItem, index) => (
-            <li className="list-group-item" key={index}>
-              <p>
-                <a href={imageItem.url}>{imageItem.name}</a>
-              </p>
-              <img src={imageItem.url} alt={imageItem.name} height="80px" />
-            </li>
+            <motion.li
+              layout
+              className={`image-gallery__item`}
+              onClick={() => deleteImage(imageItem)}
+              key={imageItem.id}
+            >
+              <img src={imageItem.url} alt={imageItem.name} />
+            </motion.li>
           ))}
-        </ul>
-      </div>
+        </motion.ul>
+      </AnimatePresence>
     </div>
   );
 };
