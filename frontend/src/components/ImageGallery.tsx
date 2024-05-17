@@ -10,7 +10,7 @@ const ImageGallery: React.FC<{
   return (
     <AnimatePresence>
       {!!uploadedImageItems.length && (
-        <h2 key={"my-photos-title"}>My photos</h2>
+        <h2 key={"my-photos-title"} className="text-sm my-4 font-semibold tracking-wider">My photos</h2>
       )}
       <motion.ul layout key={"my-photos-list"} className="image-gallery">
         {uploadedImageItems.map((imageItem, index) => {
@@ -39,7 +39,7 @@ const ImageGallery: React.FC<{
           );
         })}
       </motion.ul>
-      <h2 key={"all-photos-title"}>All photos</h2>
+      <h2 key={"all-photos-title"} className="text-sm my-4 font-semibold tracking-wider">All photos</h2>
       <motion.ul layout key={"all-photos-list"} className="image-gallery">
         {downloadedImageItems.map((imageItem, index) => (
           <motion.li

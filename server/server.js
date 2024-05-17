@@ -11,7 +11,7 @@ const THUMBNAILS_FOLDER_PATH =
   process.env.THUMBNAILS_FOLDER_PATH || "thumbnails/";
 const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
 const SERVER_PORT = process.env.SERVER_PORT || 5050;
-const SERVER_URL = process.env.SERVER_URL || "http://localhost:5050";
+const SERVER_URL = process.env.SERVER_URL || "http://192.168.1.247:5050";
 const SERVER_BASE_PATH = process.env.SERVER_BASE_PATH || "/";
 
 const corsOptions = {

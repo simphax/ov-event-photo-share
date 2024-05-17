@@ -6,7 +6,7 @@
     "install": "",
     "start": "(cd frontend && npm start) & (cd server && npm start)",
     "build": "npm run build:clean && npm run build:frontend && npm run build:frontend:copy && npm run build:server:copy",
-    "build:clean": "rm -rf build && mkdir build && mkdir build/public && mkdir build/public/uploads && mkdir build/public/thumbnails",
+    "build:clean": "rm -rf build && mkdir build && mkdir build/public && mkdir build/public/uploads && mkdir build/public/thumbnails && mkdir build/public/metadata",
     "build:frontend": "cd frontend && npm run build",
     "build:frontend:copy": "cp -r frontend/build/ build/public",
     "build:server:copy": "cp server/server.js build/server.js && cp server/package.json build/package.json"

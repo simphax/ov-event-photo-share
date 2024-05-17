@@ -6,12 +6,19 @@ import { ImageItem } from "../types/ImageItem";
 import ImageGallery from "./ImageGallery";
 import "./ImagesUpload.css";
 
+const delay = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
 const ImagesUpload: React.FC = () => {
   const [pendingImageItems, setPendingImageItems] = useState<ImageItem[]>([]);
   const [uploadedImageItems, setUploadedImageItems] = useState<ImageItem[]>([]);
   const [downloadedImageItems, setDownloadedImageItems] = useState<ImageItem[]>(
     []
   );
+  const [pendingImageAngles, setPendingImageAngles] = useState<number[]>([
+    0, 0, 0,
+  ]);
 
   const [uploadInProgress, setUploadInProgress] = useState<boolean>(false);
   const [itemsCountToUpload, setItemsCountToUpload] = useState<number>(0);
@@ -115,7 +122,7 @@ const ImagesUpload: React.FC = () => {
       });
   }, []);
 
-  const uploadImages = async () => {
+  const uploadImages = useCallback(async () => {
     try {
       setItemsCountToUpload(pendingImageItems.length);
       setUploadInProgress(true);
@@ -126,9 +133,9 @@ const ImagesUpload: React.FC = () => {
       console.error(err);
     }
     setUploadInProgress(false);
-  };
+  }, [pendingImageItems, upload]);
 
-  const deleteImage = async (imageItem: ImageItem) => {
+  const deleteImage = useCallback(async (imageItem: ImageItem) => {
     try {
       if (imageItem.remoteId)
         await UploadService.deleteFile(imageItem.remoteId);
@@ -142,7 +149,26 @@ const ImagesUpload: React.FC = () => {
     } catch (error) {
       console.error("Could not delete image", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!uploadInProgress && pendingImageItems.length) {
+      uploadImages();
+      setPendingImageAngles([
+        Math.floor(Math.random() * 61) - 30,
+        Math.floor(Math.random() * 61) - 30,
+        Math.floor(Math.random() * 61) - 30,
+      ]);
+    }
+  }, [pendingImageItems.length, uploadInProgress, uploadImages]);
+
+  // useEffect(() => {
+  //   setPendingImageAngles([
+  //     Math.floor(Math.random() * 61) - 30,
+  //     Math.floor(Math.random() * 61) - 30,
+  //     Math.floor(Math.random() * 61) - 30,
+  //   ]);
+  // }, [pendingImageItems.length]);
 
   let combinedProgress = 100;
 
@@ -158,29 +184,141 @@ const ImagesUpload: React.FC = () => {
 
   return (
     <div>
-      <label className="btn btn-default p-0">
-        <input type="file" multiple accept="image/*" onChange={selectImages} />
-      </label>
-      <button
-        className="btn btn-success btn-sm"
-        disabled={!pendingImageItems.length}
-        onClick={uploadImages}
-      >
-        Upload
-      </button>
-      <div className="progress">
-        <div
-          className="progress__bar"
-          role="progressbar"
-          aria-valuenow={combinedProgress}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          style={{ width: combinedProgress + "%" }}
-        ></div>
-      </div>
-      {pendingImageItems.map((imageItem, index) => (
-        <span key={imageItem.id}></span>
-      ))}
+      {/* <div className="progress-container">
+        <div className="progress-images">
+          {downloadedImageItems.slice(0, 3).map((imageItem, index) => (
+            <div
+              className="progress-images__image"
+              key={imageItem.id}
+              style={
+                {
+                  backgroundImage: `url(${imageItem.url})`,
+                  "--angle": `${pendingImageAngles[index]}deg`,
+                } as React.CSSProperties
+              }
+            />
+          ))}
+          <div className="progress-images__count">
+            {downloadedImageItems.length > 3 && (
+              <span className="text-sm tracking-wider font-semibold">
+                {downloadedImageItems.length - 3}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="progress-progress">
+          <div className="progress-progress__text text-sm tracking-wider font-semibold mb-2">
+            Uploading...
+          </div>
+          <div className="progress">
+            <div
+              className="progress__bar"
+              role="progressbar"
+              aria-valuenow={combinedProgress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              style={{ width: 40 + "%" }}
+            ></div>
+          </div>
+        </div>
+        <div className="progress-cancel">
+          <button
+            className="progress-cancel__button"
+            onClick={() => setPendingImageItems([])}
+          >
+            <div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </div>
+          </button>
+        </div>
+      </div> */}
+      {!uploadInProgress ? (
+        <label className="bg-primary p-4 rounded-full text-primaryText relative overflow-hidden block text-center tracking-wider font-semibold">
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={selectImages}
+            className="cursor-pointer absolute inset-0 w-full h-full opacity-0"
+          />
+          Choose photos to share
+        </label>
+      ) : (
+        <div className="progress-container">
+          <div className="progress-images">
+            {pendingImageItems.slice(0, 3).map((imageItem, index) => (
+              <div
+                className="progress-images__image"
+                key={imageItem.id}
+                style={
+                  {
+                    backgroundImage: `url(${imageItem.url})`,
+                    "--angle": `${pendingImageAngles[index]}deg`,
+                  } as React.CSSProperties
+                }
+              />
+            ))}
+            <div className="progress-images__count">
+              <span className="text-sm tracking-wider font-semibold">
+                {pendingImageItems.length}
+              </span>
+            </div>
+          </div>
+
+          <div className="progress-progress">
+            <div className="progress-progress__text text-sm tracking-wider font-semibold mb-2">
+              Uploading...
+            </div>
+            <div className="progress">
+              <div
+                className="progress__bar"
+                role="progressbar"
+                aria-valuenow={combinedProgress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                style={{ width: combinedProgress + "%" }}
+              ></div>
+            </div>
+          </div>
+          <div className="progress-cancel">
+            <button
+              className="progress-cancel__button"
+              onClick={() => setPendingImageItems([])}
+            >
+              <div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
 
       <ImageGallery
         onDeleteImage={deleteImage}
