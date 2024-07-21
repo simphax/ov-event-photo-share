@@ -1,14 +1,15 @@
 import http from "../http-common";
+import { getUserId } from "./UserService";
 
 const delay = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-
 const upload = async (file: File, onUploadProgress: (progressEvent: any) => void): Promise<any> => {
   let formData = new FormData();
 
   formData.append("file", file);
+  formData.append("user", getUserId());
 
   return http.post("/gallery", formData, {
     headers: {

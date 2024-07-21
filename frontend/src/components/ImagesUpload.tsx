@@ -5,6 +5,7 @@ import IFile from "../types/File";
 import { ImageItem } from "../types/ImageItem";
 import ImageGallery from "./ImageGallery";
 import "./ImagesUpload.css";
+import { getUserId } from "../services/UserService";
 
 const delay = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -29,10 +30,11 @@ const ImagesUpload: React.FC = () => {
       try {
         const response = await UploadService.getFiles();
         const data: IFile[] = response.data;
-        const imageItems = data.map(({ id, url, name, width, height }) => ({
+        const imageItems = data.map(({ id, url, name, user, width, height }) => ({
           id,
           remoteId: id,
           url,
+          owner: user,
           name,
           width,
           height,
@@ -40,7 +42,11 @@ const ImagesUpload: React.FC = () => {
           uploadDone: true,
           error: false,
         }));
-        setDownloadedImageItems(imageItems);
+
+        const myImages = imageItems.filter(image => image.owner === getUserId());
+        const theirImages = imageItems.filter(image => image.owner !== getUserId());
+        setUploadedImageItems(myImages);
+        setDownloadedImageItems(theirImages);
       } catch (error) {
         console.error("Failed to fetch files:", error);
       }
@@ -79,6 +85,7 @@ const ImagesUpload: React.FC = () => {
         file,
         url: URL.createObjectURL(file),
         name: file.name,
+        owner: getUserId(),
         uploadProgress: 0,
         uploadDone: false,
         error: false,

@@ -1,6 +1,7 @@
 export type ImageItem = {
     url: string,
     id: string,
+    owner: string,
     name: string,
     uploadProgress: number,
     uploadDone: boolean,

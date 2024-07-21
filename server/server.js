@@ -37,6 +37,7 @@ const upload = multer({ dest: UPLOAD_FOLDER_PATH, fileFilter });
 
 router.post("/gallery", upload.single("file"), async (req, res) => {
   console.log(req.file);
+  console.log(req.body);
 
   try {
     const sharpFile = await sharp(req.file.path);
@@ -63,7 +64,7 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
           size: metadata.size,
           width: metadata.width,
           height: metadata.height,
-          user: "default-user",
+          user: req.body.user,
         },
         null,
         2
@@ -78,7 +79,7 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
       size: metadata.size,
       width: metadata.width,
       height: metadata.height,
-      user: "default-user",
+      user: req.body.user,
       message: "File uploded successfully",
     });
   } catch (error) {
