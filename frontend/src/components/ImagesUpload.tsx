@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import UploadService from "../services/FileUploadService";
 import { v4 as uuidv4 } from "uuid";
-import IFile from "../types/File";
+import ImageItemResponseModel from "../types/File";
 import { ImageItem } from "../types/ImageItem";
 import ImageGallery from "./ImageGallery";
 import "./ImagesUpload.css";
@@ -25,32 +25,52 @@ const ImagesUpload: React.FC = () => {
   const [itemsCountToUpload, setItemsCountToUpload] = useState<number>(0);
   const uploadProgress = useRef<{ [imageItemId: string]: number }>({});
 
+  const sortedUploadedImageItems = useMemo(() => {
+    return [...uploadedImageItems].sort(
+      (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
+    );
+  }, [uploadedImageItems.length]);
+
+  const sortedDownloadedImageItems = useMemo(() => {
+    return [...downloadedImageItems].sort(
+      (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
+    );
+  }, [downloadedImageItems.length]);
+
   useEffect(() => {
     const fetchImages = async () => {
       try {
         const response = await UploadService.getFiles();
-        const data: IFile[] = response.data;
-        const imageItems = data.map(({ id, url, name, user, width, height }) => ({
-          id,
-          remoteId: id,
-          url,
-          owner: user,
-          name,
-          width,
-          height,
-          uploadProgress: 1,
-          uploadDone: true,
-          error: false,
-        }));
+        const data: ImageItemResponseModel[] = response.data;
+        const imageItems = data.map(
+          ({ id, url, name, user, width, height, uploadedDateTime }) => ({
+            id,
+            remoteId: id,
+            url,
+            owner: user,
+            uploadedDateTime: new Date(uploadedDateTime || 0),
+            name,
+            width,
+            height,
+            uploadProgress: 1,
+            uploadDone: true,
+            error: false,
+          })
+        );
 
-        const myImages = imageItems.filter(image => image.owner === getUserId());
-        const theirImages = imageItems.filter(image => image.owner !== getUserId());
+        const myImages = imageItems.filter(
+          (image) => image.owner === getUserId()
+        );
+        const theirImages = imageItems.filter(
+          (image) => image.owner !== getUserId()
+        );
         setUploadedImageItems(myImages);
         setDownloadedImageItems(theirImages);
       } catch (error) {
         console.error("Failed to fetch files:", error);
       }
     };
+
     fetchImages();
   }, []);
 
@@ -85,6 +105,7 @@ const ImagesUpload: React.FC = () => {
         file,
         url: URL.createObjectURL(file),
         name: file.name,
+        uploadedDateTime: new Date(),
         owner: getUserId(),
         uploadProgress: 0,
         uploadDone: false,
@@ -100,7 +121,7 @@ const ImagesUpload: React.FC = () => {
       uploadProgress.current[imageItem.id] = event.loaded / event.total;
     })
       .then((response) => {
-        const { id, url, width, height } = response.data;
+        const { id, url, width, height, uploadedDateTime } = response.data;
         setPendingImageItems((currentItems) =>
           currentItems.filter((item) => item.id !== imageItem.id)
         );
@@ -111,6 +132,7 @@ const ImagesUpload: React.FC = () => {
           setUploadedImageItems((currentItems) => [
             {
               ...imageItem,
+              uploadedDateTime: new Date(uploadedDateTime),
               remoteId: id,
               width,
               height,
@@ -405,8 +427,8 @@ const ImagesUpload: React.FC = () => {
       <div style={{ height: "100px" }}>{photoArea}</div>
       <ImageGallery
         onDeleteImage={deleteImage}
-        uploadedImageItems={uploadedImageItems}
-        downloadedImageItems={downloadedImageItems}
+        uploadedImageItems={sortedUploadedImageItems}
+        downloadedImageItems={sortedDownloadedImageItems}
       />
     </div>
   );

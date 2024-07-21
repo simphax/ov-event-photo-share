@@ -3,6 +3,7 @@ export type ImageItem = {
     id: string,
     owner: string,
     name: string,
+    uploadedDateTime: Date,
     uploadProgress: number,
     uploadDone: boolean,
     error: any,

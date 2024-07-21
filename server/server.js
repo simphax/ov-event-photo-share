@@ -57,6 +57,9 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
     const metadata = await sharp(
       thumbnailFilePath
     ).metadata();
+
+    const uploadedDateTime = new Date().toISOString();
+
     await fs.writeFile(
       `${METADATA_FOLDER_PATH}/${req.file.filename}.json`,
       JSON.stringify(
@@ -65,6 +68,7 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
           width: metadata.width,
           height: metadata.height,
           user: req.body.user,
+          uploadedDateTime,
         },
         null,
         2
@@ -80,6 +84,7 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
       width: metadata.width,
       height: metadata.height,
       user: req.body.user,
+      uploadedDateTime,
       message: "File uploded successfully",
     });
   } catch (error) {
