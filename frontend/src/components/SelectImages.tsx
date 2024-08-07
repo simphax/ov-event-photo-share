@@ -9,6 +9,7 @@ export function SelectImages({
   pendingImageAngles,
   combinedProgress,
   selectImages,
+  cancelUpload,
 }: {
   pendingImageItems: ImageItem[];
   setPendingImageItems: any; // Replace 'any' with the actual type of setPendingImageItems
@@ -18,6 +19,7 @@ export function SelectImages({
   pendingImageAngles: any; // Replace 'any' with the actual type of pendingImageAngles
   combinedProgress: any; // Replace 'any' with the actual type of combinedProgress
   selectImages: any; // Replace 'any' with the actual type of selectImages
+  cancelUpload: any; // Replace 'any' with the actual type of cancelUpload
 }): JSX.Element {
   const pendingtemsWithError = pendingImageItems.filter((item) => item.error);
 
@@ -62,7 +64,7 @@ export function SelectImages({
         <div className="progress-cancel">
           <button
             className="progress-cancel__button"
-            onClick={() => setPendingImageItems([])}
+            onClick={cancelUpload}
           >
             <div>
               <svg

@@ -27,18 +27,19 @@ const ImagesUpload: React.FC = () => {
   const [uploadInProgress, setUploadInProgress] = useState<boolean>(false);
   const [itemsCountToUpload, setItemsCountToUpload] = useState<number>(0);
   const uploadProgress = useRef<{ [imageItemId: string]: number }>({});
+  const abortControllers = useRef<Record<string,AbortController>>({});
 
   const sortedUploadedImageItems = useMemo(() => {
     return [...uploadedImageItems].sort(
       (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
     );
-  }, [uploadedImageItems.length]);
+  }, [uploadedImageItems]);
 
   const sortedDownloadedImageItems = useMemo(() => {
     return [...downloadedImageItems].sort(
       (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
     );
-  }, [downloadedImageItems.length]);
+  }, [downloadedImageItems]);
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -52,6 +53,7 @@ const ImagesUpload: React.FC = () => {
             url,
             owner: user,
             uploadedDateTime: new Date(uploadedDateTime || 0),
+            loadingDelete: false,
             name,
             width,
             height,
@@ -113,6 +115,7 @@ const ImagesUpload: React.FC = () => {
         uploadProgress: 0,
         uploadDone: false,
         error: false,
+        loadingDelete: false,
       };
     });
 
@@ -120,7 +123,9 @@ const ImagesUpload: React.FC = () => {
   };
 
   const upload = useCallback(async (imageItem: ImageItem, file: File) => {
-    return UploadService.upload(file, (event) => {
+    const abortController = new AbortController();
+    abortControllers.current[imageItem.id] = abortController;
+    return UploadService.upload(file, abortController.signal, (event) => {
       uploadProgress.current[imageItem.id] = event.loaded / event.total;
     })
       .then((response) => {
@@ -129,9 +134,9 @@ const ImagesUpload: React.FC = () => {
           currentItems.filter((item) => item.id !== imageItem.id)
         );
         //Prefetch the image
-        const img = new Image();
-        img.src = url;
-        img.onload = () => {
+        // const img = new Image();
+        // img.src = url;
+        // img.onload = () => {
           setUploadedImageItems((currentItems) => [
             {
               ...imageItem,
@@ -142,10 +147,11 @@ const ImagesUpload: React.FC = () => {
               url,
               uploadDone: true,
               uploadProgress: 100,
+              loadingDelete: false,
             },
             ...currentItems,
           ]);
-        };
+        // };
         if(!oneUploadDone) setOneUploadDone(true);
       })
       .catch((error) => {
@@ -158,6 +164,15 @@ const ImagesUpload: React.FC = () => {
           )
         );
       });
+  }, [oneUploadDone]);
+
+  const cancelUpload = useCallback(() => {
+    for (const [id, controller] of Object.entries(abortControllers.current)) {
+      controller.abort();
+      delete abortControllers.current[id];
+    }
+    setPendingImageItems([]);
+    setUploadInProgress(false);
   }, []);
 
   const uploadImages = useCallback(async () => {
@@ -175,15 +190,18 @@ const ImagesUpload: React.FC = () => {
 
   const deleteImage = useCallback(async (imageItem: ImageItem) => {
     try {
+      setUploadedImageItems((currentItems) =>
+        currentItems.map((item) =>
+          item.id === imageItem.id ? { ...item, loadingDelete: true } : item
+        )
+      );
       if (imageItem.remoteId)
         await UploadService.deleteFile(imageItem.remoteId);
 
       const filterItems = (array: ImageItem[]) =>
         array.filter((item) => item.id !== imageItem.id);
 
-      setPendingImageItems(filterItems);
       setUploadedImageItems(filterItems);
-      setDownloadedImageItems(filterItems);
     } catch (error) {
       console.error("Could not delete image", error);
     }
@@ -199,9 +217,9 @@ const ImagesUpload: React.FC = () => {
 
     uploadImages();
     setPendingImageAngles([
-      Math.floor(Math.random() * 61) - 30,
-      Math.floor(Math.random() * 61) - 30,
-      Math.floor(Math.random() * 61) - 30,
+      Math.floor(Math.random() * 51) - 25,
+      Math.floor(Math.random() * 51) - 25,
+      Math.floor(Math.random() * 51) - 25,
     ]);
   }, [uploadInProgress, pendingImageItems, uploadImages]);
 
@@ -229,6 +247,7 @@ const ImagesUpload: React.FC = () => {
           pendingImageAngles={pendingImageAngles}
           combinedProgress={combinedProgress}
           selectImages={selectImages}
+          cancelUpload={cancelUpload}
         />
       </div>
       <ImageGallery

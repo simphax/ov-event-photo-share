@@ -6,6 +6,7 @@ export type ImageItem = {
     uploadedDateTime: Date,
     uploadProgress: number,
     uploadDone: boolean,
+    loadingDelete: boolean,
     error: any,
     width?: number,
     height?: number,

@@ -11,11 +11,23 @@
 .image-gallery > li {
   flex: auto;
   height: 100px;
-  cursor: pointer;
   position: relative;
   overflow: hidden;
   border-radius: 3px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+  animation: pulsating-background 2s infinite;
+}
+
+@keyframes pulsating-background {
+  0% {
+    background-color: #221c1c;
+  }
+  50% {
+    background-color: #251e1e;
+  }
+  100% {
+    background-color: #221c1c;
+  }
 }
 
 .image-gallery::after {
@@ -31,6 +43,11 @@
   width: auto;
   height: auto;
   min-width: 100%;
+}
+.image-gallery li button {
+  position: absolute;
+  right: 4px;
+  top: 4px;
 }
 .progress {
     display: flex;
@@ -136,6 +153,38 @@
   font-weight: 600;
   letter-spacing: .06em;
 }
+
+
+.button {
+  background-color: #443A3A;
+  color: #F2EAE2;
+  padding: 0 1.5em;
+  border-radius: 15px;
+  line-height: 30px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+
+.button-delete {
+  background-color: #F2EAE2;
+  color: #443A3A;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /*
 .image-gallery__item {
   position: relative;
