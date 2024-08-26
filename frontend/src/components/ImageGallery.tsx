@@ -6,7 +6,8 @@ const ImageGallery: React.FC<{
   onDeleteImage: (imageItem: ImageItem) => void;
   uploadedImageItems: ImageItem[];
   downloadedImageItems: ImageItem[];
-}> = memo(({ onDeleteImage, uploadedImageItems, downloadedImageItems }) => {
+  onImageClick: (imageItem: ImageItem) => void;
+}> = memo(({ onDeleteImage, uploadedImageItems, downloadedImageItems, onImageClick }) => {
   const [editMode, setEditMode] = useState<boolean>(false);
   console.log("ImageGallery render", uploadedImageItems);
   return (
@@ -37,21 +38,22 @@ const ImageGallery: React.FC<{
                 <motion.li
                   layout
                   key={imageItem.id}
-                  className={`image-gallery__item${
+                  className={`cursor-pointer image-gallery__item${
                     imageItem.uploadDone ? " image-gallery__item--success" : ""
                   }${imageItem.error ? " image-gallery__item--error" : ""}`}
                   style={{
-                    flexGrow: imageItem.width,
+                    flexGrow: imageItem.thumbnail.width,
                     width:
-                      ((imageItem.width || 1) / (imageItem.height || 1)) * 100 +
+                      ((imageItem.thumbnail.width || 1) / (imageItem.thumbnail.height || 1)) * 100 +
                       "px",
                   }}
+                  onClick={() => onImageClick(imageItem)}
                 >
                   <img
-                    src={imageItem.url}
+                    src={imageItem.thumbnail.url}
                     alt={imageItem.name}
-                    width={imageItem.width}
-                    height={imageItem.height}
+                    width={imageItem.thumbnail.width}
+                    height={imageItem.thumbnail.height}
                   />
                   {editMode && (
                     <button
@@ -132,19 +134,20 @@ const ImageGallery: React.FC<{
         {downloadedImageItems.map((imageItem, index) => (
           <motion.li
             layout
-            className={`image-gallery__item`}
+            className={`cursor-pointer image-gallery__item`}
             key={imageItem.id}
             style={{
-              flexGrow: imageItem.width,
+              flexGrow: imageItem.thumbnail.width,
               width:
-                ((imageItem.width || 1) / (imageItem.height || 1)) * 100 + "px",
+                ((imageItem.thumbnail.width || 1) / (imageItem.thumbnail.height || 1)) * 100 + "px",
             }}
+            onClick={() => onImageClick(imageItem)}
           >
             <img
-              src={imageItem.url}
+              src={imageItem.thumbnail.url}
               alt={imageItem.name}
-              width={imageItem.width}
-              height={imageItem.height}
+              width={imageItem.thumbnail.width}
+              height={imageItem.thumbnail.height}
             />
           </motion.li>
         ))}

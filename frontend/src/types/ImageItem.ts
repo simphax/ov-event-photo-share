@@ -1,15 +1,22 @@
 export type ImageItem = {
-    url: string,
-    id: string,
-    owner: string,
-    name: string,
-    uploadedDateTime: Date,
-    uploadProgress: number,
-    uploadDone: boolean,
-    loadingDelete: boolean,
-    error: any,
-    width?: number,
-    height?: number,
-    remoteId?: string,
-    file?: File
-  }
+  thumbnail: {
+    url: string;
+    width?: number;
+    height?: number;
+  };
+  image?: {
+    url: string;
+    width?: number;
+    height?: number;
+  };
+  id: string;
+  owner: string;
+  name: string;
+  uploadedDateTime: Date;
+  uploadProgress: number;
+  uploadDone: boolean;
+  loadingDelete: boolean;
+  error: any;
+  remoteId?: string;
+  file?: File;
+};

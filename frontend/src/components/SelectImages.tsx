@@ -33,7 +33,7 @@ export function SelectImages({
               key={imageItem.id}
               style={
                 {
-                  backgroundImage: `url(${imageItem.url})`,
+                  backgroundImage: `url(${imageItem.thumbnail.url})`,
                   "--angle": `${pendingImageAngles[index]}deg`,
                 } as React.CSSProperties
               }
@@ -98,7 +98,7 @@ export function SelectImages({
               key={imageItem.id}
               style={
                 {
-                  backgroundImage: `url(${imageItem.url})`,
+                  backgroundImage: `url(${imageItem.thumbnail.url})`,
                   "--angle": `${pendingImageAngles[index]}deg`,
                 } as React.CSSProperties
               }

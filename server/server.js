@@ -5,11 +5,13 @@ const multer = require("multer");
 const fs = require("node:fs/promises");
 const path = require("path");
 const sharp = require("sharp");
+const { create } = require("node:domain");
 
 const UPLOAD_FOLDER_PATH = process.env.UPLOAD_FOLDER_PATH || "uploads/";
+const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
 const THUMBNAILS_FOLDER_PATH =
   process.env.THUMBNAILS_FOLDER_PATH || "thumbnails/";
-const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
+const GALLERY_FOLDER_PATH = process.env.GALLERY_FOLDER_PATH || "gallery/";
 const SERVER_PORT = process.env.SERVER_PORT || 5050;
 const SERVER_URL = process.env.SERVER_URL || "http://192.168.1.247:5050";
 const SERVER_BASE_PATH = process.env.SERVER_BASE_PATH || "/";
@@ -35,28 +37,87 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ dest: UPLOAD_FOLDER_PATH, fileFilter });
 
+const createThumbnail = async (filePath) => {
+  const filename = path.basename(filePath);
+  const sharpFile = await sharp(filePath);
+  const resizedImage = await sharpFile
+    .rotate()
+    .resize(200, 200, { fit: "inside" })
+    .webp();
+
+  const resizedImageBuffer = await resizedImage.toBuffer();
+
+  const thumbnailFilePath = `${THUMBNAILS_FOLDER_PATH}/${filename}.webp`;
+
+  await fs.writeFile(thumbnailFilePath, resizedImageBuffer);
+
+  const thumbnailMetadata = await sharp(thumbnailFilePath).metadata();
+
+  await fs.writeFile(
+    `${THUMBNAILS_FOLDER_PATH}/${filename}.json`,
+    JSON.stringify(
+      {
+        size: thumbnailMetadata.size,
+        width: thumbnailMetadata.width,
+        height: thumbnailMetadata.height,
+      },
+      null,
+      2
+    )
+  );
+
+  return {
+    url: `${SERVER_URL}/gallery/${encodeURIComponent(filename)}.webp?thumbnail`,
+    size: thumbnailMetadata.size,
+    width: thumbnailMetadata.width,
+    height: thumbnailMetadata.height,
+  };
+};
+
+const createGalleryImage = async (filePath) => {
+  const filename = path.basename(filePath);
+  const sharpFile = await sharp(filePath);
+  const resizedImage = await sharpFile
+    .rotate()
+    .resize(1080, 1920, { fit: "inside" })
+    .webp();
+
+  const resizedImageBuffer = await resizedImage.toBuffer();
+
+  const imageFilePath = `${GALLERY_FOLDER_PATH}/${filename}.webp`;
+
+  await fs.writeFile(imageFilePath, resizedImageBuffer);
+
+  const imageMetadata = await sharp(imageFilePath).metadata();
+
+  await fs.writeFile(
+    `${GALLERY_FOLDER_PATH}/${filename}.json`,
+    JSON.stringify(
+      {
+        size: imageMetadata.size,
+        width: imageMetadata.width,
+        height: imageMetadata.height,
+      },
+      null,
+      2
+    )
+  );
+
+  return {
+    url: `${SERVER_URL}/gallery/${encodeURIComponent(filename)}.webp`,
+    size: imageMetadata.size,
+    width: imageMetadata.width,
+    height: imageMetadata.height,
+  };
+};
+
 router.post("/gallery", upload.single("file"), async (req, res) => {
   console.log(req.file);
   console.log(req.body);
 
   try {
-    const sharpFile = await sharp(req.file.path);
-    const resizedImage = await sharpFile
-      .rotate()
-      .resize(200, 200, { fit: "inside" })
-      .webp();
-
-    const resizedImageBuffer = await resizedImage.toBuffer();
-
-    const thumbnailFilePath = `${THUMBNAILS_FOLDER_PATH}/${req.file.filename}.webp`
-
-    await fs.writeFile(
-      thumbnailFilePath,
-      resizedImageBuffer
-    );
-    const metadata = await sharp(
-      thumbnailFilePath
-    ).metadata();
+    const thumbnailMetadata = await createThumbnail(req.file.path);
+    const imageMetadata = await createGalleryImage(req.file.path);
 
     const uploadedDateTime = new Date().toISOString();
 
@@ -64,9 +125,6 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
       `${METADATA_FOLDER_PATH}/${req.file.filename}.json`,
       JSON.stringify(
         {
-          size: metadata.size,
-          width: metadata.width,
-          height: metadata.height,
           user: req.body.user,
           uploadedDateTime,
         },
@@ -77,12 +135,18 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
 
     return res.status(201).json({
       id: req.file.filename,
-      url: `${SERVER_URL}/gallery/${encodeURIComponent(
-        req.file.filename
-      )}.webp`,
-      size: metadata.size,
-      width: metadata.width,
-      height: metadata.height,
+      thumbnail: {
+        url: thumbnailMetadata.url,
+        size: thumbnailMetadata.size,
+        width: thumbnailMetadata.width,
+        height: thumbnailMetadata.height,
+      },
+      image: {
+        url: imageMetadata.url,
+        size: imageMetadata.size,
+        width: imageMetadata.width,
+        height: imageMetadata.height,
+      },
       user: req.body.user,
       uploadedDateTime,
       message: "File uploded successfully",
@@ -100,27 +164,71 @@ router.get("/gallery", async (req, res) => {
   try {
     const files = await fs.readdir(THUMBNAILS_FOLDER_PATH);
 
-    const fileInfo = files.map((fileName) => {
+    const fileInfo = files.filter(fileName => fileName.endsWith(".webp")).map((fileName) => {
       return {
         id: fileName.slice(0, -5),
-        url: `${SERVER_URL}/gallery/${encodeURIComponent(fileName)}`,
+        thumbnail: {
+          url: `${SERVER_URL}/gallery/${encodeURIComponent(
+            fileName
+          )}?thumbnail`,
+        },
+        image: {
+          url: `${SERVER_URL}/gallery/${encodeURIComponent(fileName)}`,
+        },
         name: fileName,
       };
     });
     for (let i = 0; i < fileInfo.length; i++) {
       try {
-        let metadata = await fs.readFile(
+        let commonMetadata = await fs.readFile(
           METADATA_FOLDER_PATH + "/" + fileInfo[i].id + ".json",
           "utf8"
         );
-        metadata = JSON.parse(metadata);
+        commonMetadata = JSON.parse(commonMetadata);
+
         fileInfo[i] = {
           ...fileInfo[i],
-          ...metadata,
+          ...commonMetadata,
         };
       } catch (err) {
         console.error(err);
-        console.error(`Could not get metadata for ${fileInfo[i].id}`);
+        console.error(`Could not get common metadata for ${fileInfo[i].id}`);
+      }
+      try {
+        let thumbnailMetadata = await fs.readFile(
+          THUMBNAILS_FOLDER_PATH + "/" + fileInfo[i].id + ".json",
+          "utf8"
+        );
+        thumbnailMetadata = JSON.parse(thumbnailMetadata);
+
+        fileInfo[i] = {
+          ...fileInfo[i],
+          thumbnail: {
+            ...fileInfo[i].thumbnail,
+            ...thumbnailMetadata,
+          },
+        };
+      } catch (err) {
+        console.error(err);
+        console.error(`Could not get thumbnail metadata for ${fileInfo[i].id}`);
+      }
+      try {
+        let imageMetadata = await fs.readFile(
+          GALLERY_FOLDER_PATH + "/" + fileInfo[i].id + ".json",
+          "utf8"
+        );
+        imageMetadata = JSON.parse(imageMetadata);
+
+        fileInfo[i] = {
+          ...fileInfo[i],
+          image: {
+            ...fileInfo[i].image,
+            ...imageMetadata,
+          },
+        };
+      } catch (err) {
+        console.error(err);
+        console.error(`Could not get image metadata for ${fileInfo[i].id}`);
       }
     }
 
@@ -134,12 +242,19 @@ router.get("/gallery", async (req, res) => {
 router.get("/gallery/:fileName", async (req, res) => {
   let fileName = req.params.fileName;
 
+  const isThumbnail = req.query.thumbnail !== undefined; // ?thumbnail
+
   //Sanitation
   fileName = fileName.replace(/(\.\.[\/\\])+/g, "");
 
-  const filePath = path.resolve(THUMBNAILS_FOLDER_PATH, fileName);
+  const folderPath = isThumbnail ? THUMBNAILS_FOLDER_PATH : GALLERY_FOLDER_PATH;
 
-  if (!filePath.startsWith(path.resolve(THUMBNAILS_FOLDER_PATH))) {
+  const filePath = path.resolve(
+    folderPath,
+    fileName
+  );
+
+  if (!filePath.startsWith(path.resolve(folderPath))) {
     return res.status(400).send("Invalid file path.");
   }
 
