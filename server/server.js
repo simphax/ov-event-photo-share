@@ -5,10 +5,11 @@ const multer = require("multer");
 const fs = require("node:fs/promises");
 const path = require("path");
 const sharp = require("sharp");
-const { create } = require("node:domain");
+const { Sequelize, Model, DataTypes } = require("sequelize");
 
 const UPLOAD_FOLDER_PATH = process.env.UPLOAD_FOLDER_PATH || "uploads/";
 const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
+const NOTES_FOLDER_PATH = process.env.NOTES_FOLDER_PATH || "notes/";
 const THUMBNAILS_FOLDER_PATH =
   process.env.THUMBNAILS_FOLDER_PATH || "thumbnails/";
 const GALLERY_FOLDER_PATH = process.env.GALLERY_FOLDER_PATH || "gallery/";
@@ -26,6 +27,28 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors(corsOptions));
 const router = express.Router();
+
+const sequelize = new Sequelize({
+  dialect: "sqlite",
+  storage: "./database.sqlite",
+});
+class User extends Model {}
+User.init(
+  {
+    id: {
+      type: DataTypes.STRING,
+      primaryKey: true,
+    },
+    name: {
+      type: DataTypes.STRING,
+    },
+  },
+  { sequelize, modelName: "user" }
+);
+
+(async () => {
+  await sequelize.sync();
+})();
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype == "image/jpeg" || file.mimetype == "image/png") {
@@ -160,82 +183,133 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
   }
 });
 
+router.get("/notes", async (req, res) => {
+  try {
+    const files = await fs.readdir(NOTES_FOLDER_PATH);
+
+    const noteInfos = files.map((fileName) => {
+      return {
+        id: fileName.slice(0, -5),
+      };
+    });
+
+    for (let i = 0; i < files.length; i++) {
+      try {
+        let noteDetails = await fs.readFile(
+          NOTES_FOLDER_PATH + "/" + files[i],
+          "utf8"
+        );
+        noteDetails = JSON.parse(noteDetails);
+
+        noteInfos[i] = {
+          ...noteInfos[i],
+          ...noteDetails,
+        };
+      } catch (err) {
+        console.error(err);
+        console.error(`Could not get note details for ${noteInfos[i].id}`);
+      }
+      try {
+        const user = await User.findOne({ where: { id: noteInfos[i].userId } });
+        if (user) {
+          noteInfos[i] = {
+            ...noteInfos[i],
+            userName: user.name,
+          };
+        }
+      } catch (err) {
+        console.error(err);
+        console.error(`Could not get user details for note ${noteInfos[i].id}`);
+      }
+    }
+
+    res.json(noteInfos);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send("Unable to list notes.");
+  }
+});
+
 router.get("/gallery", async (req, res) => {
   try {
     const files = await fs.readdir(THUMBNAILS_FOLDER_PATH);
 
-    const fileInfo = files.filter(fileName => fileName.endsWith(".webp")).map((fileName) => {
-      return {
-        id: fileName.slice(0, -5),
-        thumbnail: {
-          url: `${SERVER_URL}/gallery/${encodeURIComponent(
-            fileName
-          )}?thumbnail`,
-        },
-        image: {
-          url: `${SERVER_URL}/gallery/${encodeURIComponent(fileName)}`,
-        },
-        name: fileName,
-      };
-    });
-    for (let i = 0; i < fileInfo.length; i++) {
+    const imageItems = files
+      .filter((fileName) => fileName.endsWith(".webp"))
+      .map((fileName) => {
+        return {
+          id: fileName.slice(0, -5),
+          thumbnail: {
+            url: `${SERVER_URL}/gallery/${encodeURIComponent(
+              fileName
+            )}?thumbnail`,
+          },
+          image: {
+            url: `${SERVER_URL}/gallery/${encodeURIComponent(fileName)}`,
+          },
+          name: fileName,
+        };
+      });
+    for (let i = 0; i < imageItems.length; i++) {
       try {
         let commonMetadata = await fs.readFile(
-          METADATA_FOLDER_PATH + "/" + fileInfo[i].id + ".json",
+          METADATA_FOLDER_PATH + "/" + imageItems[i].id + ".json",
           "utf8"
         );
         commonMetadata = JSON.parse(commonMetadata);
 
-        fileInfo[i] = {
-          ...fileInfo[i],
+        imageItems[i] = {
+          ...imageItems[i],
           ...commonMetadata,
         };
       } catch (err) {
         console.error(err);
-        console.error(`Could not get common metadata for ${fileInfo[i].id}`);
+        console.error(`Could not get common metadata for ${imageItems[i].id}`);
       }
       try {
         let thumbnailMetadata = await fs.readFile(
-          THUMBNAILS_FOLDER_PATH + "/" + fileInfo[i].id + ".json",
+          THUMBNAILS_FOLDER_PATH + "/" + imageItems[i].id + ".json",
           "utf8"
         );
         thumbnailMetadata = JSON.parse(thumbnailMetadata);
 
-        fileInfo[i] = {
-          ...fileInfo[i],
+        imageItems[i] = {
+          ...imageItems[i],
           thumbnail: {
-            ...fileInfo[i].thumbnail,
+            ...imageItems[i].thumbnail,
             ...thumbnailMetadata,
           },
         };
       } catch (err) {
         console.error(err);
-        console.error(`Could not get thumbnail metadata for ${fileInfo[i].id}`);
+        console.error(
+          `Could not get thumbnail metadata for ${imageItems[i].id}`
+        );
       }
       try {
         let imageMetadata = await fs.readFile(
-          GALLERY_FOLDER_PATH + "/" + fileInfo[i].id + ".json",
+          GALLERY_FOLDER_PATH + "/" + imageItems[i].id + ".json",
           "utf8"
         );
         imageMetadata = JSON.parse(imageMetadata);
 
-        fileInfo[i] = {
-          ...fileInfo[i],
+        imageItems[i] = {
+          ...imageItems[i],
           image: {
-            ...fileInfo[i].image,
+            ...imageItems[i].image,
             ...imageMetadata,
           },
         };
       } catch (err) {
         console.error(err);
-        console.error(`Could not get image metadata for ${fileInfo[i].id}`);
+        console.error(`Could not get image metadata for ${imageItems[i].id}`);
       }
     }
 
-    res.json(fileInfo);
+    res.json(imageItems);
   } catch (err) {
     console.error(err);
-    return res.status(500).send("Unable to list files.");
+    return res.status(500).send("Unable to list gallery files.");
   }
 });
 
@@ -249,10 +323,7 @@ router.get("/gallery/:fileName", async (req, res) => {
 
   const folderPath = isThumbnail ? THUMBNAILS_FOLDER_PATH : GALLERY_FOLDER_PATH;
 
-  const filePath = path.resolve(
-    folderPath,
-    fileName
-  );
+  const filePath = path.resolve(folderPath, fileName);
 
   if (!filePath.startsWith(path.resolve(folderPath))) {
     return res.status(400).send("Invalid file path.");

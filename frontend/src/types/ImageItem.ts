@@ -10,7 +10,7 @@ export type ImageItem = {
     height?: number;
   };
   id: string;
-  owner: string;
+  userId: string;
   name: string;
   uploadedDateTime: Date;
   uploadProgress: number;

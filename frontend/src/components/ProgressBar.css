@@ -1,0 +1,95 @@
+.progress {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  font-size: 0.75rem;
+  background-color: #443a3a;
+  border-radius: 0.25rem;
+}
+
+.progress__bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: #222;
+  text-align: center;
+  background-color: #f2eae2;
+  transition: width 0.6s ease;
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+}
+
+.progress-progress {
+  position: relative;
+  flex-grow: 1;
+}
+
+.progress-progress__text {
+  position: absolute;
+  line-height: 40px;
+  top: -40px;
+}
+
+.progress-images {
+  width: 120px;
+  height: 120px;
+  position: relative;
+}
+
+.progress-images__image {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  left: 10px;
+  top: 20px;
+  transform: rotate(var(--angle));
+  background-position: center;
+  background-size: cover;
+}
+
+.progress-images__count {
+  position: absolute;
+  text-align: center;
+  top: 0;
+  left: 70px;
+  background-color: #ddd2c0;
+  border-radius: 30px;
+  width: 30px;
+  height: 30px;
+  line-height: 29px;
+  color: #443a3a;
+}
+
+.progress-cancel__button {
+  background-color: #443a3a;
+  color: #f2eae2;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+  margin-left: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-progress__button {
+  background-color: #443a3a;
+  color: #f2eae2;
+  padding: 0 1.5em;
+  border-radius: 15px;
+  line-height: 30px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}

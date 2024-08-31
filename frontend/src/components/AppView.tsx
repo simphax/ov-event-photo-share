@@ -1,28 +1,27 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import UploadService from "../services/FileUploadService";
+import { BackendService } from "../services/BackendService";
 import { v4 as uuidv4 } from "uuid";
-import ImageItemResponseModel from "../types/File";
 import { ImageItem } from "../types/ImageItem";
 import ImageGallery from "./ImageGallery";
-import "./ImagesUpload.css";
 import { getUserId } from "../services/UserService";
 import { SelectImages } from "./SelectImages";
 import Lightbox from "yet-another-react-lightbox";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
 
-const delay = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
+import "./AppView.css";
+import "./ProgressBar.css";
+import { Note } from "../types/Note";
 
-const ImagesUpload: React.FC = () => {
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export const AppView: React.FC = () => {
   const [oneUploadDone, setOneUploadDone] = useState<boolean>(false);
 
   const [pendingImageItems, setPendingImageItems] = useState<ImageItem[]>([]);
-  const [uploadedImageItems, setUploadedImageItems] = useState<ImageItem[]>([]);
-  const [downloadedImageItems, setDownloadedImageItems] = useState<ImageItem[]>(
-    []
-  );
+
+  const [ownedImageItems, setOwnedImageItems] = useState<ImageItem[]>([]);
+  const [othersImageItems, setOthersImageItems] = useState<ImageItem[]>([]);
   const [pendingImageAngles, setPendingImageAngles] = useState<number[]>([
     0, 0, 0,
   ]);
@@ -32,30 +31,34 @@ const ImagesUpload: React.FC = () => {
   const uploadProgress = useRef<{ [imageItemId: string]: number }>({});
   const abortControllers = useRef<Record<string, AbortController>>({});
 
+  const [ownedNotes, setOwnedNotes] = useState<Note[]>([]);
+  const [othersNotes, setOthersNotes] = useState<Note[]>([]);
+
   const sortedUploadedImageItems = useMemo(() => {
-    return [...uploadedImageItems].sort(
+    return [...ownedImageItems].sort(
       (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
     );
-  }, [uploadedImageItems]);
+  }, [ownedImageItems]);
 
   const sortedDownloadedImageItems = useMemo(() => {
-    return [...downloadedImageItems].sort(
+    return [...othersImageItems].sort(
       (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
     );
-  }, [downloadedImageItems]);
+  }, [othersImageItems]);
 
   useEffect(() => {
-    const fetchImages = async () => {
+    const fetchData = async () => {
       try {
-        const response = await UploadService.getFiles();
-        const data: ImageItemResponseModel[] = response.data;
-        const imageItems = data.map(
+        const notesResponse = await BackendService.getNotes();
+        const imageItemsResponse = await BackendService.getImageItems();
+
+        const imageItems: ImageItem[] = imageItemsResponse.map(
           ({ id, thumbnail, image, name, user, uploadedDateTime }) => ({
             id,
             remoteId: id,
             thumbnail,
             image,
-            owner: user,
+            userId: user,
             uploadedDateTime: new Date(uploadedDateTime || 0),
             loadingDelete: false,
             name,
@@ -66,19 +69,33 @@ const ImagesUpload: React.FC = () => {
         );
 
         const myImages = imageItems.filter(
-          (image) => image.owner === getUserId()
+          (image) => image.userId === getUserId()
         );
         const theirImages = imageItems.filter(
-          (image) => image.owner !== getUserId()
+          (image) => image.userId !== getUserId()
         );
-        setUploadedImageItems(myImages);
-        setDownloadedImageItems(theirImages);
+        setOwnedImageItems(myImages);
+        setOthersImageItems(theirImages);
+
+        const notes: Note[] = notesResponse.map(
+          ({ id, content, userId, userName, createdDateTime }) => ({
+            id,
+            content,
+            userId,
+            userName,
+            createdDateTime: new Date(createdDateTime || 0),
+          })
+        );
+        const myNotes = notes.filter((note) => note.userId === getUserId());
+        const theirNotes = notes.filter((note) => note.userId !== getUserId());
+        setOwnedNotes(myNotes);
+        setOthersNotes(theirNotes);
       } catch (error) {
         console.error("Failed to fetch files:", error);
       }
     };
 
-    fetchImages();
+    fetchData();
   }, []);
 
   const updateProgress = () => {
@@ -115,7 +132,7 @@ const ImagesUpload: React.FC = () => {
         },
         name: file.name,
         uploadedDateTime: new Date(),
-        owner: getUserId(),
+        userId: getUserId(),
         uploadProgress: 0,
         uploadDone: false,
         error: false,
@@ -130,19 +147,20 @@ const ImagesUpload: React.FC = () => {
     async (imageItem: ImageItem, file: File) => {
       const abortController = new AbortController();
       abortControllers.current[imageItem.id] = abortController;
-      return UploadService.upload(file, abortController.signal, (event) => {
-        uploadProgress.current[imageItem.id] = event.loaded / event.total;
-      })
+      return BackendService.uploadImageItem(
+        file,
+        abortController.signal,
+        (event) => {
+          uploadProgress.current[imageItem.id] = event.loaded / event.total;
+        }
+      )
         .then((response) => {
           const { id, image, thumbnail, uploadedDateTime } = response.data;
           setPendingImageItems((currentItems) =>
             currentItems.filter((item) => item.id !== imageItem.id)
           );
-          //Prefetch the image
-          // const img = new Image();
-          // img.src = url;
-          // img.onload = () => {
-          setUploadedImageItems((currentItems) => [
+
+          setOwnedImageItems((currentItems) => [
             {
               ...imageItem,
               image,
@@ -155,7 +173,7 @@ const ImagesUpload: React.FC = () => {
             },
             ...currentItems,
           ]);
-          // };
+
           if (!oneUploadDone) setOneUploadDone(true);
         })
         .catch((error) => {
@@ -196,18 +214,18 @@ const ImagesUpload: React.FC = () => {
 
   const deleteImage = useCallback(async (imageItem: ImageItem) => {
     try {
-      setUploadedImageItems((currentItems) =>
+      setOwnedImageItems((currentItems) =>
         currentItems.map((item) =>
           item.id === imageItem.id ? { ...item, loadingDelete: true } : item
         )
       );
       if (imageItem.remoteId)
-        await UploadService.deleteFile(imageItem.remoteId);
+        await BackendService.deleteImageItem(imageItem.remoteId);
 
       const filterItems = (array: ImageItem[]) =>
         array.filter((item) => item.id !== imageItem.id);
 
-      setUploadedImageItems(filterItems);
+      setOwnedImageItems(filterItems);
     } catch (error) {
       console.error("Could not delete image", error);
     }
@@ -261,7 +279,6 @@ const ImagesUpload: React.FC = () => {
     [sortedDownloadedImageItems, sortedUploadedImageItems]
   );
 
-  console.log("lightboxImages", lightboxImages);
   return (
     <div className="mb-10">
       <div style={{ height: "170px" }}>
@@ -279,14 +296,19 @@ const ImagesUpload: React.FC = () => {
       </div>
       <ImageGallery
         onDeleteImage={deleteImage}
-        uploadedImageItems={sortedUploadedImageItems}
-        downloadedImageItems={sortedDownloadedImageItems}
+        ownedImageItems={sortedUploadedImageItems}
+        othersImageItems={sortedDownloadedImageItems}
+        ownedNotes={ownedNotes}
+        othersNotes={othersNotes}
         onImageClick={(imageItem) => {
           const index = lightboxImages.findIndex(
             (item) => item.id === imageItem.id
           );
           setCurrentIndex(index);
           setLightboxOpen(true);
+        }}
+        onNoteClick={(note) => {
+          console.log("Note clicked", note);
         }}
       />
       <Lightbox
@@ -316,5 +338,3 @@ const ImagesUpload: React.FC = () => {
     </div>
   );
 };
-
-export default ImagesUpload;

@@ -1,0 +1,136 @@
+.image-gallery {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  justify-content: stretch;
+  flex-wrap: wrap;
+  gap: 30px;
+}
+
+.image-gallery > li {
+  flex: auto;
+  height: 100px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 3px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+  animation: pulsating-background 2s infinite;
+}
+
+.image-gallery::after {
+  content: "";
+  flex-grow: 999;
+}
+
+.image-gallery li img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: auto;
+  height: auto;
+  min-width: 100%;
+}
+
+.image-gallery li button {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+}
+
+.image-gallery > li.image-gallery-note {
+  animation: none;
+  background-color: #d9d9d9;
+  color: #222;
+  font-family: "Times New Roman", Times, serif;
+  padding: 1em;
+  width: 200px;
+}
+
+.image-gallery-note__note {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  line-height: 1.5em;
+  height: 3em; /* 3 lines */
+  width: 100%;
+}
+.image-gallery-note__note::after {
+  content: "...";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  padding-left: 10px;
+  /* Gradient */
+  background-image: linear-gradient(
+    to right,
+    rgba(217, 217, 217, 0),
+    rgba(217, 217, 217, 1) 50%
+  );
+}
+
+.button {
+  background-color: #443a3a;
+  color: #f2eae2;
+  padding: 0 1.5em;
+  border-radius: 15px;
+  line-height: 30px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.button-delete {
+  background-color: #f2eae2;
+  color: #443a3a;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hidden-input {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 100%;
+  min-height: 100%;
+  opacity: 0;
+  outline: none;
+  cursor: inherit;
+  display: block;
+}
+
+@keyframes fade-in-expand {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--angle)) scale(1.3);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(var(--angle)) scale(1);
+  }
+}
+
+@keyframes pulsating-background {
+  0% {
+    background-color: #221c1c;
+  }
+  50% {
+    background-color: #251e1e;
+  }
+  100% {
+    background-color: #221c1c;
+  }
+}
