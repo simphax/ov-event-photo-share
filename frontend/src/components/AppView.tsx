@@ -5,15 +5,54 @@ import { ImageItem } from "../types/ImageItem";
 import ImageGallery from "./ImageGallery";
 import { getUserId } from "../services/UserService";
 import { SelectImages } from "./SelectImages";
-import Lightbox from "yet-another-react-lightbox";
+import Lightbox, {
+  SlideNote,
+  Slide,
+  SlideImage,
+  SlideImageExt,
+} from "yet-another-react-lightbox";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
 
 import "./AppView.css";
 import "./ProgressBar.css";
 import { Note } from "../types/Note";
+import { NoteDialog } from "./NoteDialog";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+declare module "yet-another-react-lightbox" {
+  export interface SlideNote extends GenericSlide {
+    type: "note";
+    id: string;
+    note: string;
+    fromName: string;
+  }
+  export interface SlideImageExt extends SlideImage {
+    id: string;
+  }
+
+  interface SlideTypes {
+    note: SlideNote;
+  }
+}
+
+function isNoteSlide(slide: Slide): slide is SlideNote {
+  return slide.type === "note";
+}
+
+function NoteSlide({ slide }: { slide: SlideNote }) {
+  return (
+    <div>
+      <div className="container">
+        <div className="bg-primary rounded-xl font-serif text-primaryText px-8 py-12 leading-loose max-h-[70vh] overflow-scroll">
+          <div>{slide.note}</div>
+          <div className="mt-8">/{slide.fromName}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export const AppView: React.FC = () => {
   const [oneUploadDone, setOneUploadDone] = useState<boolean>(false);
@@ -34,13 +73,15 @@ export const AppView: React.FC = () => {
   const [ownedNotes, setOwnedNotes] = useState<Note[]>([]);
   const [othersNotes, setOthersNotes] = useState<Note[]>([]);
 
-  const sortedUploadedImageItems = useMemo(() => {
+  let [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+
+  const sortedOwnedImageItems = useMemo(() => {
     return [...ownedImageItems].sort(
       (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
     );
   }, [ownedImageItems]);
 
-  const sortedDownloadedImageItems = useMemo(() => {
+  const sortedOthersImageItems = useMemo(() => {
     return [...othersImageItems].sort(
       (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
     );
@@ -263,25 +304,36 @@ export const AppView: React.FC = () => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentImageIndex, setCurrentIndex] = useState(0);
 
-  const lightboxImages = useMemo(
-    () =>
-      sortedUploadedImageItems
-        .concat(sortedDownloadedImageItems)
-        .map((imageItem) => ({
-          id: imageItem.id,
-          src: imageItem.image!.url,
-          alt: imageItem.name,
-          download: {
-            url: imageItem.image!.url,
-            filename: imageItem.name,
-          },
-        })),
-    [sortedDownloadedImageItems, sortedUploadedImageItems]
-  );
+  const lightboxImages: (SlideImageExt | SlideNote)[] = useMemo(() => {
+    const mapImageItemToSlide = (imageItem: ImageItem): SlideImageExt => ({
+      id: imageItem.id,
+      src: imageItem.image!.url,
+      alt: imageItem.name,
+      download: {
+        url: imageItem.image!.url,
+        filename: imageItem.name,
+      },
+    });
+
+    const mapNoteToSlide = (note: Note): SlideNote => ({
+      type: "note",
+      id: note.id,
+      note: note.content,
+      fromName: note.userName,
+    });
+
+    const ownedImageSlides: SlideImageExt[] =
+      sortedOwnedImageItems.map(mapImageItemToSlide);
+    const othersNoteSlides: SlideNote[] = othersNotes.map(mapNoteToSlide);
+    const othersImageSlides: SlideImageExt[] =
+      sortedOthersImageItems.map(mapImageItemToSlide);
+
+    return [...ownedImageSlides, ...othersNoteSlides, ...othersImageSlides];
+  }, [sortedOthersImageItems, sortedOwnedImageItems, othersNotes]);
 
   return (
     <div className="mb-10">
-      <div style={{ height: "170px" }}>
+      <div style={{ height: "180px" }}>
         <SelectImages
           pendingImageItems={pendingImageItems}
           setPendingImageItems={setPendingImageItems}
@@ -292,12 +344,13 @@ export const AppView: React.FC = () => {
           combinedProgress={combinedProgress}
           selectImages={selectImages}
           cancelUpload={cancelUpload}
+          onAddNoteClick={() => setIsNoteDialogOpen(true)}
         />
       </div>
       <ImageGallery
         onDeleteImage={deleteImage}
-        ownedImageItems={sortedUploadedImageItems}
-        othersImageItems={sortedDownloadedImageItems}
+        ownedImageItems={sortedOwnedImageItems}
+        othersImageItems={sortedOthersImageItems}
         ownedNotes={ownedNotes}
         othersNotes={othersNotes}
         onImageClick={(imageItem) => {
@@ -308,7 +361,9 @@ export const AppView: React.FC = () => {
           setLightboxOpen(true);
         }}
         onNoteClick={(note) => {
-          console.log("Note clicked", note);
+          const index = lightboxImages.findIndex((item) => item.id === note.id);
+          setCurrentIndex(index);
+          setLightboxOpen(true);
         }}
       />
       <Lightbox
@@ -332,8 +387,14 @@ export const AppView: React.FC = () => {
           buttonPrev: () => null,
           buttonNext: () => null,
           buttonZoom: () => null,
+          slide: ({ slide }) =>
+            isNoteSlide(slide) ? <NoteSlide slide={slide} /> : null,
         }}
         plugins={[Download, Zoom]}
+      />
+      <NoteDialog
+        isOpen={isNoteDialogOpen}
+        onClose={() => setIsNoteDialogOpen(false)}
       />
     </div>
   );

@@ -9,7 +9,7 @@ const App: React.FC = () => {
     <div className="container">
       <div
         className="flex justify-center"
-        style={{ margin: "6rem auto 3rem auto" }}
+        style={{ margin: "6rem auto 2rem auto" }}
       >
         <Sigill />
       </div>

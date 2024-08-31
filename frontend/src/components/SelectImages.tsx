@@ -1,4 +1,6 @@
+import { Button } from "@headlessui/react";
 import { ImageItem } from "../types/ImageItem";
+import { NotebookPen } from "lucide-react";
 
 export function SelectImages({
   pendingImageItems,
@@ -10,6 +12,7 @@ export function SelectImages({
   combinedProgress,
   selectImages,
   cancelUpload,
+  onAddNoteClick,
 }: {
   pendingImageItems: ImageItem[];
   setPendingImageItems: any; // Replace 'any' with the actual type of setPendingImageItems
@@ -20,6 +23,7 @@ export function SelectImages({
   combinedProgress: any; // Replace 'any' with the actual type of combinedProgress
   selectImages: any; // Replace 'any' with the actual type of selectImages
   cancelUpload: any; // Replace 'any' with the actual type of cancelUpload
+  onAddNoteClick: () => void;
 }): JSX.Element {
   const pendingtemsWithError = pendingImageItems.filter((item) => item.error);
 
@@ -62,10 +66,7 @@ export function SelectImages({
           </div>
         </div>
         <div className="progress-cancel">
-          <button
-            className="progress-cancel__button"
-            onClick={cancelUpload}
-          >
+          <button className="progress-cancel__button" onClick={cancelUpload}>
             <div>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -168,12 +169,12 @@ export function SelectImages({
             </g>
           </svg>
         </div>
-        <p className="text-center">
+        <p className="text-center font-serif mt-3">
           Thank you so much, you are so appreciated!
         </p>
 
-        <div className="py-6">
-          <label className="bg-primary p-4 rounded-full text-primaryText relative overflow-hidden block text-center tracking-wider font-semibold">
+        <div className="py-6 flex gap-4">
+          <label className="bg-primary w-full flex items-center justify-center rounded-full text-primaryText relative overflow-hidden text-center tracking-wider font-semibold">
             <input
               type="file"
               multiple
@@ -183,13 +184,21 @@ export function SelectImages({
             />
             Upload more
           </label>
+
+          <Button
+            className="text-primary w-full py-3 font-semibold px-10 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
+            onClick={onAddNoteClick}
+          >
+            <NotebookPen />
+            Leave a note
+          </Button>
         </div>
       </>
     );
   }
 
   return (
-    <div className="pt-6">
+    <div className="pt-6 text-center">
       <label className="bg-primary p-4 rounded-full text-primaryText relative overflow-hidden block text-center tracking-wider font-semibold">
         <input
           type="file"
@@ -200,6 +209,14 @@ export function SelectImages({
         />
         Choose photos to share
       </label>
+
+      <Button
+        className="text-primary py-3 font-semibold px-10 mx-auto flex gap-2 items-center justify-center bg-primary/10 rounded-full mt-3"
+        onClick={onAddNoteClick}
+      >
+        <NotebookPen />
+        Leave a note
+      </Button>
     </div>
   );
 }
