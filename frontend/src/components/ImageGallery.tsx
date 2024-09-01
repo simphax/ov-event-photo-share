@@ -12,6 +12,7 @@ const ImageGallery: React.FC<{
   othersNotes: Note[];
   onImageClick: (imageItem: ImageItem) => void;
   onNoteClick: (note: Note) => void;
+  onDeleteNote: (note: Note) => void;
 }> = memo(
   ({
     onDeleteImage,
@@ -21,6 +22,7 @@ const ImageGallery: React.FC<{
     othersNotes,
     onImageClick,
     onNoteClick,
+    onDeleteNote,
   }) => {
     const [editMode, setEditMode] = useState<boolean>(false);
     return (
@@ -59,6 +61,35 @@ const ImageGallery: React.FC<{
                   <div className="flex items-center justify-between text-xs pt-1">
                     <div className="underline">Read more</div>
                   </div>
+                  {editMode && (
+                    <button
+                      className="button-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteNote(note);
+                      }}
+                      disabled={note.loadingDelete}
+                    >
+                      {note.loadingDelete ? (
+                        <LoadingSpinner />
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      )}
+                    </button>
+                  )}
                 </motion.li>
               ))}
               {ownedImageItems.map((imageItem, index) => {

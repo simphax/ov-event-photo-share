@@ -130,7 +130,6 @@ export const AppView: React.FC = () => {
         setOwnedImageItems(myImages);
         setOthersImageItems(theirImages);
 
-        debugger;
         const notes: Note[] = notesResponse.map(
           ({ id, content, userId, userName, createdDateTime }) => ({
             id,
@@ -138,6 +137,7 @@ export const AppView: React.FC = () => {
             userId,
             userName,
             createdDateTime: new Date(createdDateTime || 0),
+            loadingDelete: false,
           })
         );
         const myNotes = notes.filter((note) => note.userId === getUserId());
@@ -281,7 +281,35 @@ export const AppView: React.FC = () => {
 
       setOwnedImageItems(filterItems);
     } catch (error) {
+      setOwnedImageItems((currentItems) =>
+        currentItems.map((item) =>
+          item.id === imageItem.id ? { ...item, loadingDelete: false } : item
+        )
+      );
       console.error("Could not delete image", error);
+    }
+  }, []);
+
+  const deleteNote = useCallback(async (note: Note) => {
+    try {
+      setOwnedNotes((currentNotes) =>
+        currentNotes.map((item) =>
+          item.id === note.id ? { ...item, loadingDelete: true } : item
+        )
+      );
+      await BackendService.deleteNote(note.id);
+
+      const filterNotes = (array: Note[]) =>
+        array.filter((item) => item.id !== note.id);
+
+      setOwnedNotes(filterNotes);
+    } catch (error) {
+      setOwnedNotes((currentNotes) =>
+        currentNotes.map((item) =>
+          item.id === note.id ? { ...item, loadingDelete: false } : item
+        )
+      );
+      console.error("Could not delete note", error);
     }
   }, []);
 
@@ -373,6 +401,7 @@ export const AppView: React.FC = () => {
       </div>
       <ImageGallery
         onDeleteImage={deleteImage}
+        onDeleteNote={deleteNote}
         ownedImageItems={sortedOwnedImageItems}
         othersImageItems={sortedOthersImageItems}
         ownedNotes={sortedOwnedNotes}
@@ -406,6 +435,9 @@ export const AppView: React.FC = () => {
             backgroundColor: "rgba(0, 0, 0, .8)",
           },
         }}
+        carousel={{
+          finite: true,
+        }}
         animation={{ fade: 400 }}
         render={{
           buttonPrev: () => null,
@@ -428,6 +460,7 @@ export const AppView: React.FC = () => {
                 userId: note.userId,
                 userName: note.userName,
                 createdDateTime: new Date(note.createdDateTime || 0),
+                loadingDelete: false,
               };
               setOwnedNotes((currentNotes) => [newNote, ...currentNotes]);
             })

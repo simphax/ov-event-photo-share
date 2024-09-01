@@ -345,7 +345,7 @@ router.delete("/gallery/:id", async (req: Request, res: Response) => {
     return res.status(404).send("File not found");
   }
 
-  return res.status(201).json({
+  return res.status(204).json({
     id: req.params.id,
     message: "File deleted successfully",
   });
@@ -431,6 +431,30 @@ router.post("/notes", async (req: Request, res: Response) => {
       error: JSON.stringify(error),
     });
   }
+});
+
+router.delete("/notes/:id", async (req: Request, res: Response) => {
+  let fileName = `${req.params.id}.json`;
+
+  //Sanitation
+  fileName = fileName.replace(/(\.\.[\/\\])+/g, "");
+
+  const filePath = path.resolve(NOTES_FOLDER_PATH, fileName);
+
+  if (!filePath.startsWith(path.resolve(NOTES_FOLDER_PATH))) {
+    return res.status(400).send("Invalid file path.");
+  }
+
+  try {
+    await fs.unlink(filePath);
+  } catch (err) {
+    return res.status(404).send("File not found");
+  }
+
+  return res.status(204).json({
+    id: req.params.id,
+    message: "Note deleted successfully",
+  });
 });
 
 router.use("/", express.static(path.resolve("public")));

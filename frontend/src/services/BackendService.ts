@@ -50,6 +50,10 @@ const addNote = async (note: string): Promise<NoteResponseModel> => {
   return response.data;
 };
 
+const deleteNote = (id: string): Promise<any> => {
+  return http.delete(`/notes/${encodeURIComponent(id)}`);
+};
+
 export const BackendService = {
   uploadImageItem,
   deleteImageItem,
@@ -57,4 +61,5 @@ export const BackendService = {
 
   getNotes,
   addNote,
+  deleteNote,
 };

@@ -4,4 +4,5 @@ export type Note = {
   userName: string;
   content: string;
   createdDateTime: Date;
+  loadingDelete: boolean;
 };
