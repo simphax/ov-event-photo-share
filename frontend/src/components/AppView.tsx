@@ -87,6 +87,18 @@ export const AppView: React.FC = () => {
     );
   }, [othersImageItems]);
 
+  const sortedOwnedNotes = useMemo(() => {
+    return [...ownedNotes].sort(
+      (a, b) => b.createdDateTime.getTime() - a.createdDateTime.getTime()
+    );
+  }, [ownedNotes]);
+
+  const sortedOthersNotes = useMemo(() => {
+    return [...othersNotes].sort(
+      (a, b) => b.createdDateTime.getTime() - a.createdDateTime.getTime()
+    );
+  }, [othersNotes]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -118,6 +130,7 @@ export const AppView: React.FC = () => {
         setOwnedImageItems(myImages);
         setOthersImageItems(theirImages);
 
+        debugger;
         const notes: Note[] = notesResponse.map(
           ({ id, content, userId, userName, createdDateTime }) => ({
             id,
@@ -196,7 +209,7 @@ export const AppView: React.FC = () => {
         }
       )
         .then((response) => {
-          const { id, image, thumbnail, uploadedDateTime } = response.data;
+          const { id, image, thumbnail, uploadedDateTime } = response;
           setPendingImageItems((currentItems) =>
             currentItems.filter((item) => item.id !== imageItem.id)
           );
@@ -322,14 +335,25 @@ export const AppView: React.FC = () => {
       fromName: note.userName,
     });
 
+    const ownedNoteSlides: SlideNote[] = sortedOwnedNotes.map(mapNoteToSlide);
     const ownedImageSlides: SlideImageExt[] =
       sortedOwnedImageItems.map(mapImageItemToSlide);
-    const othersNoteSlides: SlideNote[] = othersNotes.map(mapNoteToSlide);
+    const othersNoteSlides: SlideNote[] = sortedOthersNotes.map(mapNoteToSlide);
     const othersImageSlides: SlideImageExt[] =
       sortedOthersImageItems.map(mapImageItemToSlide);
 
-    return [...ownedImageSlides, ...othersNoteSlides, ...othersImageSlides];
-  }, [sortedOthersImageItems, sortedOwnedImageItems, othersNotes]);
+    return [
+      ...ownedNoteSlides,
+      ...ownedImageSlides,
+      ...othersNoteSlides,
+      ...othersImageSlides,
+    ];
+  }, [
+    sortedOthersImageItems,
+    sortedOwnedImageItems,
+    sortedOthersNotes,
+    sortedOwnedNotes,
+  ]);
 
   return (
     <div className="mb-10">
@@ -351,8 +375,8 @@ export const AppView: React.FC = () => {
         onDeleteImage={deleteImage}
         ownedImageItems={sortedOwnedImageItems}
         othersImageItems={sortedOthersImageItems}
-        ownedNotes={ownedNotes}
-        othersNotes={othersNotes}
+        ownedNotes={sortedOwnedNotes}
+        othersNotes={sortedOthersNotes}
         onImageClick={(imageItem) => {
           const index = lightboxImages.findIndex(
             (item) => item.id === imageItem.id
@@ -394,7 +418,24 @@ export const AppView: React.FC = () => {
       />
       <NoteDialog
         isOpen={isNoteDialogOpen}
-        onClose={() => setIsNoteDialogOpen(false)}
+        onCancel={() => setIsNoteDialogOpen(false)}
+        onAddNote={(note) => {
+          BackendService.addNote(note)
+            .then((note) => {
+              const newNote: Note = {
+                id: note.id,
+                content: note.content,
+                userId: note.userId,
+                userName: note.userName,
+                createdDateTime: new Date(note.createdDateTime || 0),
+              };
+              setOwnedNotes((currentNotes) => [newNote, ...currentNotes]);
+            })
+            .catch((error) => {
+              console.error("Could not add note", error);
+            });
+          setIsNoteDialogOpen(false);
+        }}
       />
     </div>
   );

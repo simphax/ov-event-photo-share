@@ -46,6 +46,21 @@ const ImageGallery: React.FC<{
               )}
             </div>
             <motion.ul layout key={"my-photos-list"} className="image-gallery">
+              {ownedNotes.map((note, index) => (
+                <motion.li
+                  layout
+                  className={`cursor-pointer image-gallery-note`}
+                  key={note.id}
+                  onClick={() => onNoteClick(note)}
+                >
+                  <span className="image-gallery-note__note">
+                    {note.content}
+                  </span>
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <div className="underline">Read more</div>
+                  </div>
+                </motion.li>
+              ))}
               {ownedImageItems.map((imageItem, index) => {
                 return (
                   <motion.li
@@ -76,6 +91,7 @@ const ImageGallery: React.FC<{
                       <button
                         className="button-delete"
                         onClick={(e) => {
+                          e.stopPropagation();
                           onDeleteImage(imageItem);
                         }}
                         disabled={imageItem.loadingDelete}

@@ -10,11 +10,15 @@ import { useState } from "react";
 
 export const NoteDialog = ({
   isOpen,
-  onClose,
+  onCancel,
+  onAddNote,
 }: {
   isOpen: boolean;
-  onClose: () => void;
+  onCancel: () => void;
+  onAddNote: (note: string) => void;
 }) => {
+  const [note, setNote] = useState("");
+
   return (
     <>
       <AnimatePresence>
@@ -22,7 +26,7 @@ export const NoteDialog = ({
           <Dialog
             static
             open={isOpen}
-            onClose={() => onClose()}
+            onClose={() => onCancel()}
             className="relative z-50"
           >
             <motion.div
@@ -45,14 +49,15 @@ export const NoteDialog = ({
                 <Textarea
                   autoFocus
                   className="border p-4 h-40 font-serif border-primary/50 rounded-xl data-[focus]:border-transparent bg-none w-full bg-transparent"
+                  onChange={(e) => setNote(e.target.value)}
                 ></Textarea>
                 <div className="flex justify-end gap-4">
-                  <Button className="px-8 py-2" onClick={() => onClose()}>
+                  <Button className="px-8 py-2" onClick={() => onCancel()}>
                     Cancel
                   </Button>
                   <Button
                     className="bg-primary/10 rounded-full px-8 py-2"
-                    onClick={() => onClose()}
+                    onClick={() => onAddNote(note)}
                   >
                     Add note
                   </Button>

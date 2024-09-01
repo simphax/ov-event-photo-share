@@ -6,6 +6,7 @@ const fs = require("node:fs/promises");
 const path = require("path");
 const sharp = require("sharp");
 const { Sequelize, Model, DataTypes } = require("sequelize");
+const { v4: uuidv4 } = require("uuid");
 
 const UPLOAD_FOLDER_PATH = process.env.UPLOAD_FOLDER_PATH || "uploads/";
 const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
@@ -183,53 +184,6 @@ router.post("/gallery", upload.single("file"), async (req, res) => {
   }
 });
 
-router.get("/notes", async (req, res) => {
-  try {
-    const files = await fs.readdir(NOTES_FOLDER_PATH);
-
-    const noteInfos = files.map((fileName) => {
-      return {
-        id: fileName.slice(0, -5),
-      };
-    });
-
-    for (let i = 0; i < files.length; i++) {
-      try {
-        let noteDetails = await fs.readFile(
-          NOTES_FOLDER_PATH + "/" + files[i],
-          "utf8"
-        );
-        noteDetails = JSON.parse(noteDetails);
-
-        noteInfos[i] = {
-          ...noteInfos[i],
-          ...noteDetails,
-        };
-      } catch (err) {
-        console.error(err);
-        console.error(`Could not get note details for ${noteInfos[i].id}`);
-      }
-      try {
-        const user = await User.findOne({ where: { id: noteInfos[i].userId } });
-        if (user) {
-          noteInfos[i] = {
-            ...noteInfos[i],
-            userName: user.name,
-          };
-        }
-      } catch (err) {
-        console.error(err);
-        console.error(`Could not get user details for note ${noteInfos[i].id}`);
-      }
-    }
-
-    res.json(noteInfos);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).send("Unable to list notes.");
-  }
-});
-
 router.get("/gallery", async (req, res) => {
   try {
     const files = await fs.readdir(THUMBNAILS_FOLDER_PATH);
@@ -376,6 +330,88 @@ router.delete("/gallery/:id", async (req, res) => {
     id: req.params.id,
     message: "File deleted successfully",
   });
+});
+
+router.get("/notes", async (req, res) => {
+  try {
+    const files = await fs.readdir(NOTES_FOLDER_PATH);
+
+    const noteInfos = files.map((fileName) => {
+      return {
+        id: fileName.slice(0, -5),
+      };
+    });
+
+    for (let i = 0; i < files.length; i++) {
+      try {
+        let noteDetails = await fs.readFile(
+          NOTES_FOLDER_PATH + "/" + files[i],
+          "utf8"
+        );
+        noteDetails = JSON.parse(noteDetails);
+
+        noteInfos[i] = {
+          ...noteInfos[i],
+          ...noteDetails,
+        };
+      } catch (err) {
+        console.error(err);
+        console.error(`Could not get note details for ${noteInfos[i].id}`);
+      }
+      try {
+        const user = await User.findOne({ where: { id: noteInfos[i].userId } });
+        if (user) {
+          noteInfos[i] = {
+            ...noteInfos[i],
+            userName: user.name,
+          };
+        }
+      } catch (err) {
+        console.error(err);
+        console.error(`Could not get user details for note ${noteInfos[i].id}`);
+      }
+    }
+
+    res.json(noteInfos);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send("Unable to list notes.");
+  }
+});
+
+router.post("/notes", async (req, res) => {
+  const { userId, content } = req.body;
+
+  const noteId = uuidv4();
+
+  try {
+    const createdDateTime = new Date().toISOString();
+    await fs.writeFile(
+      `${NOTES_FOLDER_PATH}/${noteId}.json`,
+      JSON.stringify(
+        {
+          userId,
+          content,
+          createdDateTime,
+        },
+        null,
+        2
+      )
+    );
+
+    return res.status(201).json({
+      id: noteId,
+      userId,
+      content,
+      createdDateTime,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Error creating note",
+      error: JSON.stringify(error),
+    });
+  }
 });
 
 router.use("/", express.static(path.resolve("public")));

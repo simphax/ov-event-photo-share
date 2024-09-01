@@ -1,4 +1,3 @@
-import { AxiosResponse } from "axios";
 import http from "../http-common";
 import { getUserId } from "./UserService";
 import { ImageItemResponseModel } from "../types/ImageItemResponseModel";
@@ -8,7 +7,7 @@ const uploadImageItem = async (
   file: File,
   abortSignal: AbortSignal,
   onUploadProgress: (progressEvent: any) => void
-): Promise<AxiosResponse> => {
+): Promise<ImageItemResponseModel> => {
   let formData = new FormData();
 
   formData.append("file", file);
@@ -22,13 +21,9 @@ const uploadImageItem = async (
     signal: abortSignal,
   };
 
-  const request: Promise<AxiosResponse> = http.post(
-    "/gallery",
-    formData,
-    config
-  );
+  const response = await http.post("/gallery", formData, config);
 
-  return request;
+  return response.data;
 };
 
 const deleteImageItem = (id: string): Promise<any> => {
@@ -47,10 +42,19 @@ const getNotes = async (): Promise<NoteResponseModel[]> => {
   return data;
 };
 
+const addNote = async (note: string): Promise<NoteResponseModel> => {
+  const response = await http.post("/notes", {
+    userId: getUserId(),
+    content: note,
+  });
+  return response.data;
+};
+
 export const BackendService = {
   uploadImageItem,
   deleteImageItem,
   getImageItems,
 
   getNotes,
+  addNote,
 };
