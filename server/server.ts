@@ -465,6 +465,29 @@ router.delete("/notes/:id", async (req: Request, res: Response) => {
   });
 });
 
+router.put("/users/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { name } = req.body;
+
+  try {
+    await User.upsert({
+      id,
+      name,
+    });
+
+    return res.status(204).json({
+      id,
+      message: "User updated successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Error updating user",
+      error: JSON.stringify(error),
+    });
+  }
+});
+
 router.use("/", express.static(path.resolve("public")));
 
 app.use(SERVER_BASE_PATH, router);

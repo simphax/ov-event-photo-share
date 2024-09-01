@@ -18,6 +18,7 @@ import "./AppView.css";
 import "./ProgressBar.css";
 import { Note } from "../types/Note";
 import { NoteDialog } from "./NoteDialog";
+import { NameDialog } from "./NameDialog";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -76,6 +77,7 @@ export const AppView: React.FC = () => {
   const [othersNotes, setOthersNotes] = useState<Note[]>([]);
 
   let [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+  let [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
 
   const sortedOwnedImageItems = useMemo(() => {
     return [...ownedImageItems].sort(
@@ -261,6 +263,9 @@ export const AppView: React.FC = () => {
     try {
       setItemsCountToUpload(pendingImageItems.length);
       setUploadInProgress(true);
+
+      if (!userName) setIsNameDialogOpen(true);
+
       await Promise.all(
         pendingImageItems.map((imageItem) => upload(imageItem, imageItem.file!))
       );
@@ -268,7 +273,7 @@ export const AppView: React.FC = () => {
       console.error(err);
     }
     setUploadInProgress(false);
-  }, [pendingImageItems, upload]);
+  }, [pendingImageItems, upload, userName]);
 
   const deleteImage = useCallback(async (imageItem: ImageItem) => {
     try {
@@ -474,6 +479,18 @@ export const AppView: React.FC = () => {
               console.error("Could not add note", error);
             });
           setIsNoteDialogOpen(false);
+        }}
+      />
+      <NameDialog
+        isOpen={isNameDialogOpen}
+        onSetName={async (name) => {
+          setIsNameDialogOpen(false);
+          try {
+            await BackendService.setUserName(getUserId(), name);
+            setUserName(name);
+          } catch (error) {
+            console.error("Could not set name", error);
+          }
         }}
       />
     </div>

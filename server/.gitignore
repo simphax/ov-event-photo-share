@@ -4,3 +4,4 @@ uploads
 metadata
 gallery
 notes
+*.sqlite

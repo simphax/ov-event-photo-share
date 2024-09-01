@@ -60,6 +60,10 @@ const deleteNote = (id: string): Promise<any> => {
   return http.delete(`/notes/${encodeURIComponent(id)}`);
 };
 
+const setUserName = (id: string, name: string): Promise<any> => {
+  return http.put(`/users/${encodeURIComponent(id)}`, { name });
+};
+
 export const BackendService = {
   uploadImageItem,
   deleteImageItem,
@@ -68,4 +72,5 @@ export const BackendService = {
   getNotes,
   addNote,
   deleteNote,
+  setUserName,
 };
