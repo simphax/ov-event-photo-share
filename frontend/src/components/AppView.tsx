@@ -19,6 +19,7 @@ import "./ProgressBar.css";
 import { Note } from "../types/Note";
 import { NoteDialog } from "./NoteDialog";
 import { NameDialog } from "./NameDialog";
+import { UserItems } from "../types/UserItem";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -367,6 +368,41 @@ export const AppView: React.FC = () => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentImageIndex, setCurrentIndex] = useState(0);
 
+  const groupedItems: UserItems[] = useMemo(() => {
+    const groupedNotes: { [key: string]: Note[] } = sortedOthersNotes.reduce(
+      (acc, note) => {
+        if (!acc[note.userId]) {
+          acc[note.userId] = [];
+        }
+        acc[note.userId].push(note);
+        return acc;
+      },
+      {} as { [key: string]: Note[] }
+    );
+
+    const groupedImageItems: { [key: string]: ImageItem[] } =
+      sortedOthersImageItems.reduce((acc, imageItem) => {
+        if (!acc[imageItem.userId]) {
+          acc[imageItem.userId] = [];
+        }
+        acc[imageItem.userId].push(imageItem);
+        return acc;
+      }, {} as { [key: string]: ImageItem[] });
+
+    const userIdsWithContent = new Set(
+      Object.keys(groupedNotes).concat(Object.keys(groupedImageItems))
+    );
+
+    return Array.from(userIdsWithContent).map((userId) => {
+      return {
+        userId,
+        userName: userNames[userId] || "Anonymous",
+        notes: groupedNotes[userId] || [],
+        imageItems: groupedImageItems[userId] || [],
+      };
+    });
+  }, [sortedOthersNotes, sortedOthersImageItems, userNames]);
+
   const lightboxImages: (SlideImageExt | SlideNote)[] = useMemo(() => {
     const mapImageItemToSlide = (imageItem: ImageItem): SlideImageExt => ({
       id: imageItem.id,
@@ -388,22 +424,14 @@ export const AppView: React.FC = () => {
     const ownedNoteSlides: SlideNote[] = sortedOwnedNotes.map(mapNoteToSlide);
     const ownedImageSlides: SlideImageExt[] =
       sortedOwnedImageItems.map(mapImageItemToSlide);
-    const othersNoteSlides: SlideNote[] = sortedOthersNotes.map(mapNoteToSlide);
-    const othersImageSlides: SlideImageExt[] =
-      sortedOthersImageItems.map(mapImageItemToSlide);
+    const othersSlides = groupedItems.flatMap((group) => {
+      const notes = group.notes.map(mapNoteToSlide);
+      const imageItems = group.imageItems.map(mapImageItemToSlide);
+      return [...notes, ...imageItems];
+    });
 
-    return [
-      ...ownedNoteSlides,
-      ...ownedImageSlides,
-      ...othersNoteSlides,
-      ...othersImageSlides,
-    ];
-  }, [
-    sortedOthersImageItems,
-    sortedOwnedImageItems,
-    sortedOthersNotes,
-    sortedOwnedNotes,
-  ]);
+    return [...ownedNoteSlides, ...ownedImageSlides, ...othersSlides];
+  }, [sortedOwnedNotes, sortedOwnedImageItems, groupedItems]);
 
   return (
     <div className="mb-10">
@@ -428,6 +456,7 @@ export const AppView: React.FC = () => {
         othersImageItems={sortedOthersImageItems}
         ownedNotes={sortedOwnedNotes}
         othersNotes={sortedOthersNotes}
+        groupedItems={groupedItems}
         userNames={userNames}
         onImageClick={(imageItem) => {
           const index = lightboxImages.findIndex(

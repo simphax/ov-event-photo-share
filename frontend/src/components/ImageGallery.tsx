@@ -1,14 +1,23 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageItem } from "../types/ImageItem";
-import { memo, useMemo, useState } from "react";
+import { memo, useState } from "react";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { Note } from "../types/Note";
+import { UserItems } from "../types/UserItem";
 
-type UserItems = {
-  userId: string;
-  userName: string;
-  notes: Note[];
-  imageItems: ImageItem[];
+const pickRelevantImages = (imageItems: ImageItem[]) => {
+  const arrayLength = imageItems.length;
+  const numToShow = 9;
+
+  const interval = arrayLength / numToShow;
+  const result: ImageItem[] = [];
+
+  for (let i = 0; i < numToShow; i++) {
+    const index = Math.floor(i * interval);
+    result.push(imageItems[index]);
+  }
+
+  return result;
 };
 
 const ImageGallery: React.FC<{
@@ -17,6 +26,7 @@ const ImageGallery: React.FC<{
   othersImageItems: ImageItem[];
   ownedNotes: Note[];
   othersNotes: Note[];
+  groupedItems: UserItems[];
   userNames: { [id: string]: string };
   onImageClick: (imageItem: ImageItem) => void;
   onNoteClick: (note: Note) => void;
@@ -25,50 +35,20 @@ const ImageGallery: React.FC<{
   ({
     onDeleteImage,
     ownedImageItems,
-    othersImageItems,
     ownedNotes,
-    othersNotes,
-    userNames,
+    groupedItems,
     onImageClick,
     onNoteClick,
     onDeleteNote,
   }) => {
     const [editMode, setEditMode] = useState<boolean>(false);
+    const [usersShowAll, setUsersShowAll] = useState<Set<string>>(new Set());
 
-    const groupedItems: UserItems[] = useMemo(() => {
-      const groupedNotes: { [key: string]: Note[] } = othersNotes.reduce(
-        (acc, note) => {
-          if (!acc[note.userId]) {
-            acc[note.userId] = [];
-          }
-          acc[note.userId].push(note);
-          return acc;
-        },
-        {} as { [key: string]: Note[] }
-      );
-
-      const groupedImageItems: { [key: string]: ImageItem[] } =
-        othersImageItems.reduce((acc, imageItem) => {
-          if (!acc[imageItem.userId]) {
-            acc[imageItem.userId] = [];
-          }
-          acc[imageItem.userId].push(imageItem);
-          return acc;
-        }, {} as { [key: string]: ImageItem[] });
-
-      const userIdsWithContent = new Set(
-        Object.keys(groupedNotes).concat(Object.keys(groupedImageItems))
-      );
-
-      return Array.from(userIdsWithContent).map((userId) => {
-        return {
-          userId,
-          userName: userNames[userId] || "Anonymous",
-          notes: groupedNotes[userId] || [],
-          imageItems: groupedImageItems[userId] || [],
-        };
-      });
-    }, [othersNotes, othersImageItems]);
+    const showAllForUser = (userId: string) => {
+      const newSet = new Set(usersShowAll);
+      newSet.add(userId);
+      setUsersShowAll(newSet);
+    };
 
     return (
       <AnimatePresence>
@@ -202,67 +182,97 @@ const ImageGallery: React.FC<{
           </div>
         )}
 
-        <h2
-          key={"all-photos-title"}
-          className="text-sm mt-4 font-semibold tracking-wider"
-        >
-          All photos
-        </h2>
-        {groupedItems.map((userItems, index) => (
+        {groupedItems.length > 0 && (
           <>
             <h2
               key={"all-photos-title"}
-              className={`text-xs mb-3${
-                index === 0 ? "" : " mt-8"
-              } tracking-wider text-primary/40 text-right`}
+              className="text-sm mt-4 font-semibold tracking-wider"
             >
-              Uploaded by: {userItems.userName}
+              All photos
             </h2>
-            <motion.ul layout key={"all-photos-list"} className="image-gallery">
-              {userItems.notes.map((note, index) => (
-                <motion.li
-                  layout
-                  className={`cursor-pointer image-gallery-note`}
-                  key={note.id}
-                  onClick={() => onNoteClick(note)}
+            {groupedItems.map((userItems, index) => (
+              <>
+                <h2
+                  key={"all-photos-title"}
+                  className={`text-xs mb-3${
+                    index === 0 ? "" : " mt-8"
+                  } tracking-wider text-primary/40 text-right`}
                 >
-                  <span className="image-gallery-note__note">
-                    {note.content}
-                  </span>
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <div className="underline whitespace-nowrap mr-2">
-                      Read more
-                    </div>
-                    <div className="truncate">{note.userName}</div>
-                  </div>
-                </motion.li>
-              ))}
-              {userItems.imageItems.map((imageItem, index) => (
-                <motion.li
+                  Uploaded by: {userItems.userName}
+                </h2>
+                <motion.ul
                   layout
-                  className={`cursor-pointer image-gallery-image`}
-                  key={imageItem.id}
-                  style={{
-                    flexGrow: imageItem.thumbnail.width,
-                    width:
-                      ((imageItem.thumbnail.width || 1) /
-                        (imageItem.thumbnail.height || 1)) *
-                        100 +
-                      "px",
-                  }}
-                  onClick={() => onImageClick(imageItem)}
+                  key={"all-photos-list"}
+                  className="image-gallery"
                 >
-                  <img
-                    src={imageItem.thumbnail.url}
-                    alt={imageItem.name}
-                    width={imageItem.thumbnail.width}
-                    height={imageItem.thumbnail.height}
-                  />
-                </motion.li>
-              ))}
-            </motion.ul>
+                  {userItems.notes.map((note, index) => (
+                    <motion.li
+                      layout
+                      className={`cursor-pointer image-gallery-note`}
+                      key={note.id}
+                      onClick={() => onNoteClick(note)}
+                    >
+                      <span className="image-gallery-note__note">
+                        {note.content}
+                      </span>
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <div className="underline whitespace-nowrap mr-2">
+                          Read more
+                        </div>
+                        <div className="truncate">{note.userName}</div>
+                      </div>
+                    </motion.li>
+                  ))}
+                  {(usersShowAll.has(userItems.userId)
+                    ? userItems.imageItems
+                    : pickRelevantImages(userItems.imageItems)
+                  ).map((imageItem, index) => (
+                    <motion.li
+                      layout
+                      className={`cursor-pointer image-gallery-image`}
+                      key={imageItem.id}
+                      style={{
+                        flexGrow: imageItem.thumbnail.width,
+                        width:
+                          ((imageItem.thumbnail.width || 1) /
+                            (imageItem.thumbnail.height || 1)) *
+                            100 +
+                          "px",
+                      }}
+                      onClick={() => onImageClick(imageItem)}
+                    >
+                      <img
+                        src={imageItem.thumbnail.url}
+                        alt={imageItem.name}
+                        width={imageItem.thumbnail.width}
+                        height={imageItem.thumbnail.height}
+                      />
+                    </motion.li>
+                  ))}
+                  {!usersShowAll.has(userItems.userId) &&
+                    userItems.imageItems.length > 9 && (
+                      <motion.li
+                        layout
+                        className="cursor-pointer w-28 image-gallery-show-more"
+                        key={"show-more"}
+                        onClick={() => showAllForUser(userItems.userId)}
+                      >
+                        <img
+                          src={userItems.imageItems[9].thumbnail.url}
+                          alt={userItems.imageItems[9].name}
+                          width={userItems.imageItems[9].thumbnail.width}
+                          height={userItems.imageItems[9].thumbnail.height}
+                        />
+                        <span className="bg-black/80 absolute w-full h-full flex items-center justify-center font-semibold text-primary">
+                          +{userItems.imageItems.length - 9}
+                        </span>
+                      </motion.li>
+                    )}
+                </motion.ul>
+              </>
+            ))}
           </>
-        ))}
+        )}
       </AnimatePresence>
     );
   }
