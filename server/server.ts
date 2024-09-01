@@ -488,6 +488,17 @@ router.put("/users/:id", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/users", async (req: Request, res: Response) => {
+  try {
+    const users = await User.findAll();
+
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send("Unable to list users.");
+  }
+});
+
 router.use("/", express.static(path.resolve("public")));
 
 app.use(SERVER_BASE_PATH, router);

@@ -76,6 +76,8 @@ export const AppView: React.FC = () => {
   const [ownedNotes, setOwnedNotes] = useState<Note[]>([]);
   const [othersNotes, setOthersNotes] = useState<Note[]>([]);
 
+  const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
+
   let [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   let [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
 
@@ -108,8 +110,12 @@ export const AppView: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const notesResponse = await BackendService.getNotes();
-        const imageItemsResponse = await BackendService.getImageItems();
+        const [notesResponse, imageItemsResponse, usersResponse] =
+          await Promise.all([
+            BackendService.getNotes(),
+            BackendService.getImageItems(),
+            BackendService.getUsers(),
+          ]);
 
         const imageItems: ImageItem[] = imageItemsResponse.map(
           ({ id, thumbnail, image, name, user, uploadedDateTime }) => ({
@@ -150,6 +156,13 @@ export const AppView: React.FC = () => {
         const theirNotes = notes.filter((note) => note.userId !== getUserId());
         setOwnedNotes(myNotes);
         setOthersNotes(theirNotes);
+
+        setUserNames(
+          usersResponse.reduce((acc, user) => {
+            acc[user.id] = user.name;
+            return acc;
+          }, {} as { [id: string]: string })
+        );
       } catch (error) {
         console.error("Failed to fetch files:", error);
       }
@@ -415,6 +428,7 @@ export const AppView: React.FC = () => {
         othersImageItems={sortedOthersImageItems}
         ownedNotes={sortedOwnedNotes}
         othersNotes={sortedOthersNotes}
+        userNames={userNames}
         onImageClick={(imageItem) => {
           const index = lightboxImages.findIndex(
             (item) => item.id === imageItem.id

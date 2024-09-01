@@ -1,8 +1,15 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageItem } from "../types/ImageItem";
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { Note } from "../types/Note";
+
+type UserItems = {
+  userId: string;
+  userName: string;
+  notes: Note[];
+  imageItems: ImageItem[];
+};
 
 const ImageGallery: React.FC<{
   onDeleteImage: (imageItem: ImageItem) => void;
@@ -10,6 +17,7 @@ const ImageGallery: React.FC<{
   othersImageItems: ImageItem[];
   ownedNotes: Note[];
   othersNotes: Note[];
+  userNames: { [id: string]: string };
   onImageClick: (imageItem: ImageItem) => void;
   onNoteClick: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
@@ -20,11 +28,48 @@ const ImageGallery: React.FC<{
     othersImageItems,
     ownedNotes,
     othersNotes,
+    userNames,
     onImageClick,
     onNoteClick,
     onDeleteNote,
   }) => {
     const [editMode, setEditMode] = useState<boolean>(false);
+
+    const groupedItems: UserItems[] = useMemo(() => {
+      const groupedNotes: { [key: string]: Note[] } = othersNotes.reduce(
+        (acc, note) => {
+          if (!acc[note.userId]) {
+            acc[note.userId] = [];
+          }
+          acc[note.userId].push(note);
+          return acc;
+        },
+        {} as { [key: string]: Note[] }
+      );
+
+      const groupedImageItems: { [key: string]: ImageItem[] } =
+        othersImageItems.reduce((acc, imageItem) => {
+          if (!acc[imageItem.userId]) {
+            acc[imageItem.userId] = [];
+          }
+          acc[imageItem.userId].push(imageItem);
+          return acc;
+        }, {} as { [key: string]: ImageItem[] });
+
+      const userIdsWithContent = new Set(
+        Object.keys(groupedNotes).concat(Object.keys(groupedImageItems))
+      );
+
+      return Array.from(userIdsWithContent).map((userId) => {
+        return {
+          userId,
+          userName: userNames[userId] || "Anonymous",
+          notes: groupedNotes[userId] || [],
+          imageItems: groupedImageItems[userId] || [],
+        };
+      });
+    }, [othersNotes, othersImageItems]);
+
     return (
       <AnimatePresence>
         {!!ownedImageItems.length && (
@@ -156,51 +201,68 @@ const ImageGallery: React.FC<{
             </motion.ul>
           </div>
         )}
+
         <h2
           key={"all-photos-title"}
-          className="text-sm my-4 font-semibold tracking-wider"
+          className="text-sm mt-4 font-semibold tracking-wider"
         >
           All photos
         </h2>
-        <motion.ul layout key={"all-photos-list"} className="image-gallery">
-          {othersNotes.map((note, index) => (
-            <motion.li
-              layout
-              className={`cursor-pointer image-gallery-note`}
-              key={note.id}
-              onClick={() => onNoteClick(note)}
+        {groupedItems.map((userItems, index) => (
+          <>
+            <h2
+              key={"all-photos-title"}
+              className={`text-xs mb-3${
+                index === 0 ? "" : " mt-8"
+              } tracking-wider text-primary/40 text-right`}
             >
-              <span className="image-gallery-note__note">{note.content}</span>
-              <div className="flex items-center justify-between text-xs pt-1">
-                <div className="underline">Read more</div>
-                <div>{note.userName}</div>
-              </div>
-            </motion.li>
-          ))}
-          {othersImageItems.map((imageItem, index) => (
-            <motion.li
-              layout
-              className={`cursor-pointer image-gallery-image`}
-              key={imageItem.id}
-              style={{
-                flexGrow: imageItem.thumbnail.width,
-                width:
-                  ((imageItem.thumbnail.width || 1) /
-                    (imageItem.thumbnail.height || 1)) *
-                    100 +
-                  "px",
-              }}
-              onClick={() => onImageClick(imageItem)}
-            >
-              <img
-                src={imageItem.thumbnail.url}
-                alt={imageItem.name}
-                width={imageItem.thumbnail.width}
-                height={imageItem.thumbnail.height}
-              />
-            </motion.li>
-          ))}
-        </motion.ul>
+              Uploaded by: {userItems.userName}
+            </h2>
+            <motion.ul layout key={"all-photos-list"} className="image-gallery">
+              {userItems.notes.map((note, index) => (
+                <motion.li
+                  layout
+                  className={`cursor-pointer image-gallery-note`}
+                  key={note.id}
+                  onClick={() => onNoteClick(note)}
+                >
+                  <span className="image-gallery-note__note">
+                    {note.content}
+                  </span>
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <div className="underline whitespace-nowrap mr-2">
+                      Read more
+                    </div>
+                    <div className="truncate">{note.userName}</div>
+                  </div>
+                </motion.li>
+              ))}
+              {userItems.imageItems.map((imageItem, index) => (
+                <motion.li
+                  layout
+                  className={`cursor-pointer image-gallery-image`}
+                  key={imageItem.id}
+                  style={{
+                    flexGrow: imageItem.thumbnail.width,
+                    width:
+                      ((imageItem.thumbnail.width || 1) /
+                        (imageItem.thumbnail.height || 1)) *
+                        100 +
+                      "px",
+                  }}
+                  onClick={() => onImageClick(imageItem)}
+                >
+                  <img
+                    src={imageItem.thumbnail.url}
+                    alt={imageItem.name}
+                    width={imageItem.thumbnail.width}
+                    height={imageItem.thumbnail.height}
+                  />
+                </motion.li>
+              ))}
+            </motion.ul>
+          </>
+        ))}
       </AnimatePresence>
     );
   }

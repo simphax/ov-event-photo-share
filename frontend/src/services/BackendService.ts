@@ -3,6 +3,7 @@ import { getUserId } from "./UserService";
 import { ImageItemResponseModel } from "../../../common/types/ImageItemResponseModel";
 import { NoteResponseModel } from "../../../common/types/NoteResponseModel";
 import { NoteCreateRequestModel } from "../../../common/types/NoteCreateRequestModel";
+import { UserResponseModel } from "../../../common/types/UserResponseModel";
 
 const uploadImageItem = async (
   file: File,
@@ -43,6 +44,12 @@ const getNotes = async (): Promise<NoteResponseModel[]> => {
   return data;
 };
 
+const getUsers = async (): Promise<UserResponseModel[]> => {
+  const response = await http.get("/users");
+  const data = response.data;
+  return data;
+};
+
 const addNote = async (
   note: string,
   userName: string
@@ -73,4 +80,6 @@ export const BackendService = {
   addNote,
   deleteNote,
   setUserName,
+
+  getUsers,
 };
