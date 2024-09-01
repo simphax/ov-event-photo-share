@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon --ignore metadata/ --ignore thumbnails/ --ignore gallery/ --ignore uploads/ --ignore notes/ server.js"
+    "start": "nodemon --ignore metadata/ --ignore thumbnails/ --ignore gallery/ --ignore uploads/ --ignore notes/ server.ts"
   },
   "author": "",
   "license": "ISC",
@@ -16,9 +16,17 @@
     "sequelize": "^6.37.3",
     "sharp": "0.31.1",
     "sqlite3": "^5.1.7",
+    "ts-node": "^10.9.2",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.5.1",
+    "@types/sharp": "0.31.1",
+    "@types/uuid": "^10.0.0",
+    "nodemon": "^3.1.0",
+    "typescript": "^5.5.4"
   }
 }

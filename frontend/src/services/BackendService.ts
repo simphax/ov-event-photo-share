@@ -1,7 +1,7 @@
 import http from "../http-common";
 import { getUserId } from "./UserService";
-import { ImageItemResponseModel } from "../types/ImageItemResponseModel";
-import { NoteResponseModel } from "../types/NoteResponseModel";
+import { ImageItemResponseModel } from "../../../common/types/ImageItemResponseModel";
+import { NoteResponseModel } from "../../../common/types/NoteResponseModel";
 
 const uploadImageItem = async (
   file: File,

@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true,
+  },
+  "include": [
+    "server.ts",
+    "../common",
+  ],
+  "paths": {
+    "@common/*": [
+      "../common/*"
+    ]
+  }
+}
