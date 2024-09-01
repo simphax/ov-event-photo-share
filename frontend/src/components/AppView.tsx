@@ -45,8 +45,10 @@ function NoteSlide({ slide }: { slide: SlideNote }) {
   return (
     <div>
       <div className="container">
-        <div className="bg-primary rounded-xl font-serif text-primaryText px-8 py-12 leading-loose max-h-[70vh] overflow-scroll">
-          <div>{slide.note}</div>
+        <div className="bg-primary rounded-xl font-serif text-primaryText px-8 py-12 min-w-64 leading-loose max-h-[70vh] overflow-scroll">
+          <pre className="font-serif break-normal whitespace-pre-wrap">
+            {slide.note}
+          </pre>
           <div className="mt-8">/{slide.fromName}</div>
         </div>
       </div>
