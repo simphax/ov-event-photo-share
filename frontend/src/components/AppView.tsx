@@ -3,7 +3,7 @@ import { BackendService } from "../services/BackendService";
 import { v4 as uuidv4 } from "uuid";
 import { ImageItem } from "../types/ImageItem";
 import ImageGallery from "./ImageGallery";
-import { getUserId } from "../services/UserService";
+import { getUserId, getUserName, setUserName } from "../services/UserService";
 import { SelectImages } from "./SelectImages";
 import Lightbox, {
   SlideNote,
@@ -100,6 +100,8 @@ export const AppView: React.FC = () => {
       (a, b) => b.createdDateTime.getTime() - a.createdDateTime.getTime()
     );
   }, [othersNotes]);
+
+  const userName = getUserName();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -453,8 +455,9 @@ export const AppView: React.FC = () => {
       <NoteDialog
         isOpen={isNoteDialogOpen}
         onCancel={() => setIsNoteDialogOpen(false)}
-        onAddNote={(note) => {
-          BackendService.addNote(note)
+        userName={userName}
+        onAddNote={(note, name) => {
+          BackendService.addNote(note, name)
             .then((note) => {
               const newNote: Note = {
                 id: note.id,
@@ -464,6 +467,7 @@ export const AppView: React.FC = () => {
                 createdDateTime: new Date(note.createdDateTime || 0),
                 loadingDelete: false,
               };
+              setUserName(note.userName);
               setOwnedNotes((currentNotes) => [newNote, ...currentNotes]);
             })
             .catch((error) => {

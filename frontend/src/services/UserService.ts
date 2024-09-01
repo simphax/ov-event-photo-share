@@ -1,8 +1,16 @@
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 
 export const getUserId = (): string => {
-    if(!localStorage.getItem('userId')) {
-        localStorage.setItem('userId', uuidv4());
-    }
-    return localStorage.getItem('userId')!;
+  if (!localStorage.getItem("userId")) {
+    localStorage.setItem("userId", uuidv4());
+  }
+  return localStorage.getItem("userId")!;
+};
+
+export const getUserName = (): string => {
+  return localStorage.getItem("userName") || "";
+};
+
+export const setUserName = (newName: string) => {
+  localStorage.setItem("userName", newName);
 };

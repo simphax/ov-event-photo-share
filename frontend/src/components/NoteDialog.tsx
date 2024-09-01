@@ -4,20 +4,30 @@ import {
   DialogPanel,
   DialogTitle,
   Button,
+  Field,
+  Label,
+  Input,
 } from "@headlessui/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export const NoteDialog = ({
   isOpen,
+  userName,
   onCancel,
   onAddNote,
 }: {
   isOpen: boolean;
+  userName: string;
   onCancel: () => void;
-  onAddNote: (note: string) => void;
+  onAddNote: (note: string, name: string) => void;
 }) => {
   const [note, setNote] = useState("");
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (userName) setName(userName);
+  }, [userName]);
 
   return (
     <>
@@ -48,16 +58,26 @@ export const NoteDialog = ({
                 </DialogTitle>
                 <Textarea
                   autoFocus
+                  value={note}
                   className="border p-4 h-40 font-serif border-primary/50 rounded-xl data-[focus]:border-transparent bg-none w-full bg-transparent"
                   onChange={(e) => setNote(e.target.value)}
                 ></Textarea>
+
+                <Field>
+                  <Label className="font-semibold block mb-1">From name</Label>
+                  <Input
+                    value={name}
+                    className="border p-4 font-serif border-primary/50 rounded-xl data-[focus]:border-transparent bg-none w-full bg-transparent"
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </Field>
                 <div className="flex justify-end gap-4">
                   <Button className="px-8 py-2" onClick={() => onCancel()}>
                     Cancel
                   </Button>
                   <Button
                     className="bg-primary/10 rounded-full px-8 py-2"
-                    onClick={() => onAddNote(note)}
+                    onClick={() => onAddNote(note, name)}
                   >
                     Add note
                   </Button>

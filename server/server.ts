@@ -8,6 +8,7 @@ import { Sequelize, Model, DataTypes } from "sequelize";
 import { v4 as uuidv4 } from "uuid";
 import { NoteResponseModel } from "../common/types/NoteResponseModel";
 import { ImageItemResponseModel } from "../common/types/ImageItemResponseModel";
+import { NoteCreateRequestModel } from "../common/types/NoteCreateRequestModel";
 
 const UPLOAD_FOLDER_PATH = process.env.UPLOAD_FOLDER_PATH || "uploads/";
 const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
@@ -378,7 +379,7 @@ router.get("/notes", async (req: Request, res: Response) => {
         console.error(`Could not get note details for ${noteInfos[i].id}`);
       }
       try {
-        const user = await User.findOne({ where: { id: noteInfos[i].userId } });
+        const user = await User.findByPk(noteInfos[i].userId);
         if (user) {
           noteInfos[i] = {
             ...noteInfos[i],
@@ -399,11 +400,15 @@ router.get("/notes", async (req: Request, res: Response) => {
 });
 
 router.post("/notes", async (req: Request, res: Response) => {
-  const { userId, content } = req.body;
+  const { userId, userName, content } = req.body as NoteCreateRequestModel;
 
   const noteId = uuidv4();
 
   try {
+    await User.upsert({
+      id: userId,
+      name: userName,
+    });
     const createdDateTime = new Date().toISOString();
     await fs.writeFile(
       `${NOTES_FOLDER_PATH}/${noteId}.json`,
@@ -418,12 +423,15 @@ router.post("/notes", async (req: Request, res: Response) => {
       )
     );
 
-    return res.status(201).json({
+    const returnNote: NoteResponseModel = {
       id: noteId,
       userId,
+      userName,
       content,
       createdDateTime,
-    });
+    };
+
+    return res.status(201).json(returnNote);
   } catch (error) {
     console.error(error);
     return res.status(500).json({

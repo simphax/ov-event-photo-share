@@ -59,7 +59,10 @@ const ImageGallery: React.FC<{
                     {note.content}
                   </span>
                   <div className="flex items-center justify-between text-xs pt-1">
-                    <div className="underline">Read more</div>
+                    <div className="underline whitespace-nowrap mr-2">
+                      Read more
+                    </div>
+                    <div className="truncate">/{note.userName}</div>
                   </div>
                   {editMode && (
                     <button
@@ -170,6 +173,7 @@ const ImageGallery: React.FC<{
               <span className="image-gallery-note__note">{note.content}</span>
               <div className="flex items-center justify-between text-xs pt-1">
                 <div className="underline">Read more</div>
+                <div>{note.userName}</div>
               </div>
             </motion.li>
           ))}

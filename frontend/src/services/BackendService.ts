@@ -2,6 +2,7 @@ import http from "../http-common";
 import { getUserId } from "./UserService";
 import { ImageItemResponseModel } from "../../../common/types/ImageItemResponseModel";
 import { NoteResponseModel } from "../../../common/types/NoteResponseModel";
+import { NoteCreateRequestModel } from "../../../common/types/NoteCreateRequestModel";
 
 const uploadImageItem = async (
   file: File,
@@ -42,11 +43,16 @@ const getNotes = async (): Promise<NoteResponseModel[]> => {
   return data;
 };
 
-const addNote = async (note: string): Promise<NoteResponseModel> => {
-  const response = await http.post("/notes", {
+const addNote = async (
+  note: string,
+  userName: string
+): Promise<NoteResponseModel> => {
+  const noteCreateModel: NoteCreateRequestModel = {
     userId: getUserId(),
+    userName,
     content: note,
-  });
+  };
+  const response = await http.post("/notes", noteCreateModel);
   return response.data;
 };
 
