@@ -5,12 +5,7 @@ import { ImageItem } from "../types/ImageItem";
 import ImageGallery from "./ImageGallery";
 import { getUserId, getUserName, setUserName } from "../services/UserService";
 import { SelectImages } from "./SelectImages";
-import Lightbox, {
-  SlideNote,
-  Slide,
-  SlideImage,
-  SlideImageExt,
-} from "yet-another-react-lightbox";
+import Lightbox, { SlideNote, SlideImageExt } from "yet-another-react-lightbox";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
 
@@ -20,43 +15,7 @@ import { Note } from "../types/Note";
 import { NoteDialog } from "./NoteDialog";
 import { NameDialog } from "./NameDialog";
 import { UserItem } from "../types/UserItem";
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-declare module "yet-another-react-lightbox" {
-  export interface SlideNote extends GenericSlide {
-    type: "note";
-    id: string;
-    note: string;
-    fromName: string;
-  }
-  export interface SlideImageExt extends SlideImage {
-    id: string;
-  }
-
-  interface SlideTypes {
-    note: SlideNote;
-  }
-}
-
-function isNoteSlide(slide: Slide): slide is SlideNote {
-  return slide.type === "note";
-}
-
-function NoteSlide({ slide }: { slide: SlideNote }) {
-  return (
-    <div>
-      <div className="container">
-        <div className="bg-primary rounded-xl font-serif text-primaryText px-8 py-12 min-w-64 leading-loose max-h-[70vh] overflow-scroll">
-          <pre className="font-serif break-normal whitespace-pre-wrap">
-            {slide.note}
-          </pre>
-          <div className="mt-8">/{slide.fromName}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { isNoteSlide, NoteSlide } from "./NoteSlide";
 
 const pickRelevantImages = (imageItems: ImageItem[]) => {
   const arrayLength = imageItems.length;
@@ -420,7 +379,15 @@ export const AppView: React.FC = () => {
       Object.keys(groupedNotes).concat(Object.keys(groupedImageItems))
     );
 
-    return Array.from(userIdsWithContent).map((userId) => {
+    const userIdsWithContentArray = Array.from(userIdsWithContent);
+
+    const indexOfSimonClara = userIdsWithContentArray.indexOf("simonclara");
+    if (indexOfSimonClara !== -1) {
+      userIdsWithContentArray.splice(indexOfSimonClara, 1);
+      userIdsWithContentArray.unshift("simonclara");
+    }
+
+    return userIdsWithContentArray.map((userId) => {
       const displayedImageItems =
         (usersShowAllImages.has(userId)
           ? groupedImageItems[userId]

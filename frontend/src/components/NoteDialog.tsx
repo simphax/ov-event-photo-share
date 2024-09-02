@@ -29,6 +29,10 @@ export const NoteDialog = ({
     if (userName) setName(userName);
   }, [userName]);
 
+  useEffect(() => {
+    if (!isOpen) setNote("");
+  }, [isOpen]);
+
   return (
     <>
       <AnimatePresence>
