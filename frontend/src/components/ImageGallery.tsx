@@ -44,12 +44,18 @@ const ImageGallery: React.FC<{
                 My photos
               </h2>
               {!editMode && (
-                <button className="button" onClick={() => setEditMode(true)}>
+                <button
+                  className="button text-primary bg-primary/10"
+                  onClick={() => setEditMode(true)}
+                >
                   Edit
                 </button>
               )}
               {editMode && (
-                <button className="button" onClick={() => setEditMode(false)}>
+                <button
+                  className="button text-primary bg-primary/10"
+                  onClick={() => setEditMode(false)}
+                >
                   Done
                 </button>
               )}
