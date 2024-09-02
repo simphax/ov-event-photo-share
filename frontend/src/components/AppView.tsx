@@ -354,6 +354,12 @@ export const AppView: React.FC = () => {
     setUsersShowAllImages(newSet);
   };
 
+  const showLessImagesForUser = (userId: string) => {
+    const newSet = new Set(usersShowAllImages);
+    newSet.delete(userId);
+    setUsersShowAllImages(newSet);
+  };
+
   const groupedItems: UserItem[] = useMemo(() => {
     const groupedNotes: { [key: string]: Note[] } = sortedOthersNotes.reduce(
       (acc, note) => {
@@ -465,6 +471,7 @@ export const AppView: React.FC = () => {
         onDeleteImage={deleteImage}
         onDeleteNote={deleteNote}
         onShowAll={showAllImagesForUser}
+        onShowLess={showLessImagesForUser}
         ownedImageItems={sortedOwnedImageItems}
         othersImageItems={sortedOthersImageItems}
         ownedNotes={sortedOwnedNotes}

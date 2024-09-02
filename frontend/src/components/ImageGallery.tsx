@@ -4,6 +4,7 @@ import { memo, useState } from "react";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { Note } from "../types/Note";
 import { UserItem } from "../types/UserItem";
+import { ChevronUp } from "lucide-react";
 
 const ImageGallery: React.FC<{
   onDeleteImage: (imageItem: ImageItem) => void;
@@ -16,6 +17,7 @@ const ImageGallery: React.FC<{
   onNoteClick: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
   onShowAll: (userId: string) => void;
+  onShowLess: (userId: string) => void;
 }> = memo(
   ({
     onDeleteImage,
@@ -26,6 +28,7 @@ const ImageGallery: React.FC<{
     onNoteClick,
     onDeleteNote,
     onShowAll,
+    onShowLess,
   }) => {
     const [editMode, setEditMode] = useState<boolean>(false);
 
@@ -243,6 +246,19 @@ const ImageGallery: React.FC<{
                       </span>
                     </motion.li>
                   )}
+                  {userItems.isShowingAllItems &&
+                    userItems.imageItems.length > 9 && (
+                      <motion.li
+                        layout
+                        className="cursor-pointer image-gallery-show-more w-full !h-7"
+                        key={"show-less"}
+                        onClick={() => onShowLess(userItems.userId)}
+                      >
+                        <span className="bg-black/20 absolute w-full h-full flex items-center justify-center text-sm font-semibold text-primary">
+                          <ChevronUp className="mr-2" /> Show less
+                        </span>
+                      </motion.li>
+                    )}
                 </motion.ul>
               </>
             ))}
