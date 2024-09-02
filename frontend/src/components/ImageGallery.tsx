@@ -3,22 +3,7 @@ import { ImageItem } from "../types/ImageItem";
 import { memo, useState } from "react";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { Note } from "../types/Note";
-import { UserItems } from "../types/UserItem";
-
-const pickRelevantImages = (imageItems: ImageItem[]) => {
-  const arrayLength = imageItems.length;
-  const numToShow = 9;
-
-  const interval = arrayLength / numToShow;
-  const result: ImageItem[] = [];
-
-  for (let i = 0; i < numToShow; i++) {
-    const index = Math.floor(i * interval);
-    result.push(imageItems[index]);
-  }
-
-  return result;
-};
+import { UserItem } from "../types/UserItem";
 
 const ImageGallery: React.FC<{
   onDeleteImage: (imageItem: ImageItem) => void;
@@ -26,11 +11,11 @@ const ImageGallery: React.FC<{
   othersImageItems: ImageItem[];
   ownedNotes: Note[];
   othersNotes: Note[];
-  groupedItems: UserItems[];
-  userNames: { [id: string]: string };
+  groupedItems: UserItem[];
   onImageClick: (imageItem: ImageItem) => void;
   onNoteClick: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
+  onShowAll: (userId: string) => void;
 }> = memo(
   ({
     onDeleteImage,
@@ -40,15 +25,9 @@ const ImageGallery: React.FC<{
     onImageClick,
     onNoteClick,
     onDeleteNote,
+    onShowAll,
   }) => {
     const [editMode, setEditMode] = useState<boolean>(false);
-    const [usersShowAll, setUsersShowAll] = useState<Set<string>>(new Set());
-
-    const showAllForUser = (userId: string) => {
-      const newSet = new Set(usersShowAll);
-      newSet.add(userId);
-      setUsersShowAll(newSet);
-    };
 
     return (
       <AnimatePresence>
@@ -193,7 +172,7 @@ const ImageGallery: React.FC<{
             {groupedItems.map((userItems, index) => (
               <>
                 <h2
-                  key={"all-photos-title"}
+                  key={"uploaded-by-title"}
                   className={`text-xs mb-3${
                     index === 0 ? "" : " mt-8"
                   } tracking-wider text-primary/40 text-right`}
@@ -223,10 +202,7 @@ const ImageGallery: React.FC<{
                       </div>
                     </motion.li>
                   ))}
-                  {(usersShowAll.has(userItems.userId)
-                    ? userItems.imageItems
-                    : pickRelevantImages(userItems.imageItems)
-                  ).map((imageItem, index) => (
+                  {userItems.imageItems.map((imageItem, index) => (
                     <motion.li
                       layout
                       className={`cursor-pointer image-gallery-image`}
@@ -249,25 +225,24 @@ const ImageGallery: React.FC<{
                       />
                     </motion.li>
                   ))}
-                  {!usersShowAll.has(userItems.userId) &&
-                    userItems.imageItems.length > 9 && (
-                      <motion.li
-                        layout
-                        className="cursor-pointer w-28 image-gallery-show-more"
-                        key={"show-more"}
-                        onClick={() => showAllForUser(userItems.userId)}
-                      >
-                        <img
-                          src={userItems.imageItems[9].thumbnail.url}
-                          alt={userItems.imageItems[9].name}
-                          width={userItems.imageItems[9].thumbnail.width}
-                          height={userItems.imageItems[9].thumbnail.height}
-                        />
-                        <span className="bg-black/80 absolute w-full h-full flex items-center justify-center font-semibold text-primary">
-                          +{userItems.imageItems.length - 9}
-                        </span>
-                      </motion.li>
-                    )}
+                  {!userItems.isShowingAllItems && (
+                    <motion.li
+                      layout
+                      className="cursor-pointer w-28 image-gallery-show-more"
+                      key={"show-more"}
+                      onClick={() => onShowAll(userItems.userId)}
+                    >
+                      <img
+                        src={userItems.hiddenItemsPreview.thumbnail.url}
+                        alt={userItems.hiddenItemsPreview.name}
+                        width={userItems.hiddenItemsPreview.thumbnail.width}
+                        height={userItems.hiddenItemsPreview.thumbnail.height}
+                      />
+                      <span className="bg-black/80 absolute w-full h-full flex items-center justify-center font-semibold text-primary">
+                        +{userItems.hiddenItemsCount}
+                      </span>
+                    </motion.li>
+                  )}
                 </motion.ul>
               </>
             ))}

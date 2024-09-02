@@ -19,7 +19,7 @@ import "./ProgressBar.css";
 import { Note } from "../types/Note";
 import { NoteDialog } from "./NoteDialog";
 import { NameDialog } from "./NameDialog";
-import { UserItems } from "../types/UserItem";
+import { UserItem } from "../types/UserItem";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -57,6 +57,23 @@ function NoteSlide({ slide }: { slide: SlideNote }) {
     </div>
   );
 }
+
+const pickRelevantImages = (imageItems: ImageItem[]) => {
+  const arrayLength = imageItems.length;
+  if (arrayLength === 0) return imageItems;
+  const numToShow = 9;
+  if (arrayLength <= numToShow) return imageItems;
+
+  const result: ImageItem[] = [];
+
+  const last = imageItems.pop()!;
+
+  for (let i = 0; i < numToShow - 1; i++) {
+    const index = Math.floor((i * arrayLength) / (numToShow - 1));
+    result.push(imageItems[index]);
+  }
+  return result.concat(last);
+};
 
 export const AppView: React.FC = () => {
   const [oneUploadDone, setOneUploadDone] = useState<boolean>(false);
@@ -368,7 +385,17 @@ export const AppView: React.FC = () => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentImageIndex, setCurrentIndex] = useState(0);
 
-  const groupedItems: UserItems[] = useMemo(() => {
+  const [usersShowAllImages, setUsersShowAllImages] = useState<Set<string>>(
+    new Set()
+  );
+
+  const showAllImagesForUser = (userId: string) => {
+    const newSet = new Set(usersShowAllImages);
+    newSet.add(userId);
+    setUsersShowAllImages(newSet);
+  };
+
+  const groupedItems: UserItem[] = useMemo(() => {
     const groupedNotes: { [key: string]: Note[] } = sortedOthersNotes.reduce(
       (acc, note) => {
         if (!acc[note.userId]) {
@@ -394,14 +421,32 @@ export const AppView: React.FC = () => {
     );
 
     return Array.from(userIdsWithContent).map((userId) => {
-      return {
+      const displayedImageItems =
+        (usersShowAllImages.has(userId)
+          ? groupedImageItems[userId]
+          : pickRelevantImages(groupedImageItems[userId])) || [];
+
+      const userItem: UserItem = {
         userId,
         userName: userNames[userId] || "Anonymous",
         notes: groupedNotes[userId] || [],
-        imageItems: groupedImageItems[userId] || [],
+        imageItems: displayedImageItems,
+        isShowingAllItems:
+          (groupedImageItems[userId] || []).length ===
+          displayedImageItems.length,
+        hiddenItemsCount:
+          (groupedImageItems[userId] || []).length - displayedImageItems.length,
+        hiddenItemsPreview:
+          groupedImageItems[userId][groupedImageItems[userId].length - 2],
       };
+      return userItem;
     });
-  }, [sortedOthersNotes, sortedOthersImageItems, userNames]);
+  }, [
+    sortedOthersNotes,
+    sortedOthersImageItems,
+    userNames,
+    usersShowAllImages,
+  ]);
 
   const lightboxImages: (SlideImageExt | SlideNote)[] = useMemo(() => {
     const mapImageItemToSlide = (imageItem: ImageItem): SlideImageExt => ({
@@ -452,12 +497,12 @@ export const AppView: React.FC = () => {
       <ImageGallery
         onDeleteImage={deleteImage}
         onDeleteNote={deleteNote}
+        onShowAll={showAllImagesForUser}
         ownedImageItems={sortedOwnedImageItems}
         othersImageItems={sortedOthersImageItems}
         ownedNotes={sortedOwnedNotes}
         othersNotes={sortedOthersNotes}
         groupedItems={groupedItems}
-        userNames={userNames}
         onImageClick={(imageItem) => {
           const index = lightboxImages.findIndex(
             (item) => item.id === imageItem.id
