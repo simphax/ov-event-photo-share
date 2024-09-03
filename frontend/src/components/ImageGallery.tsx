@@ -47,7 +47,10 @@ const ImageGallery: React.FC<{
               {!editMode && (
                 <button
                   className="button text-primary bg-primary/10"
-                  onClick={() => setEditMode(true)}
+                  onClick={() => {
+                    setEditMode(true);
+                    onShowAll(myItems.userId);
+                  }}
                 >
                   Edit
                 </button>
@@ -55,7 +58,10 @@ const ImageGallery: React.FC<{
               {editMode && (
                 <button
                   className="button text-primary bg-primary/10"
-                  onClick={() => setEditMode(false)}
+                  onClick={() => {
+                    setEditMode(false);
+                    onShowLess(myItems.userId);
+                  }}
                 >
                   Done
                 </button>
