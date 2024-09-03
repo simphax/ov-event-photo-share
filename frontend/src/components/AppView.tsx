@@ -25,7 +25,7 @@ const pickRelevantImages = (imageItems: ImageItem[]) => {
 
   const result: ImageItem[] = [];
 
-  const last = imageItems.pop()!;
+  const last = imageItems[imageItems.length - 1];
 
   for (let i = 0; i < numToShow - 1; i++) {
     const index = Math.floor((i * arrayLength) / (numToShow - 1));
@@ -393,7 +393,7 @@ export const AppView: React.FC = () => {
       userIdsWithContentArray.unshift("simonclara");
     }
 
-    return userIdsWithContentArray.map((userId) => {
+    const result = userIdsWithContentArray.map((userId) => {
       const displayedImageItems =
         (usersShowAllImages.has(userId)
           ? groupedImageItems[userId]
@@ -414,7 +414,32 @@ export const AppView: React.FC = () => {
       };
       return userItem;
     });
+
+    const userId = getUserId();
+    const displayedImageItems =
+      (usersShowAllImages.has(userId)
+        ? sortedOwnedImageItems
+        : pickRelevantImages(sortedOwnedImageItems)) || [];
+
+    const userItem: UserItem = {
+      userId,
+      userName: getUserName(),
+      notes: sortedOwnedNotes || [],
+      imageItems: displayedImageItems,
+      isShowingAllItems:
+        (sortedOwnedImageItems || []).length === displayedImageItems.length,
+      hiddenItemsCount:
+        (sortedOwnedImageItems || []).length - displayedImageItems.length,
+      hiddenItemsPreview:
+        sortedOwnedImageItems[sortedOwnedImageItems.length - 2],
+    };
+
+    result.unshift(userItem);
+
+    return result;
   }, [
+    sortedOwnedNotes,
+    sortedOwnedImageItems,
     sortedOthersNotes,
     sortedOthersImageItems,
     userNames,
@@ -439,17 +464,12 @@ export const AppView: React.FC = () => {
       fromName: note.userName,
     });
 
-    const ownedNoteSlides: SlideNote[] = sortedOwnedNotes.map(mapNoteToSlide);
-    const ownedImageSlides: SlideImageExt[] =
-      sortedOwnedImageItems.map(mapImageItemToSlide);
-    const othersSlides = groupedItems.flatMap((group) => {
+    return groupedItems.flatMap((group) => {
       const notes = group.notes.map(mapNoteToSlide);
       const imageItems = group.imageItems.map(mapImageItemToSlide);
       return [...notes, ...imageItems];
     });
-
-    return [...ownedNoteSlides, ...ownedImageSlides, ...othersSlides];
-  }, [sortedOwnedNotes, sortedOwnedImageItems, groupedItems]);
+  }, [groupedItems]);
 
   return (
     <div className="mb-10">
@@ -468,15 +488,11 @@ export const AppView: React.FC = () => {
         />
       </div>
       <ImageGallery
+        groupedItems={groupedItems}
         onDeleteImage={deleteImage}
         onDeleteNote={deleteNote}
         onShowAll={showAllImagesForUser}
         onShowLess={showLessImagesForUser}
-        ownedImageItems={sortedOwnedImageItems}
-        othersImageItems={sortedOthersImageItems}
-        ownedNotes={sortedOwnedNotes}
-        othersNotes={sortedOthersNotes}
-        groupedItems={groupedItems}
         onImageClick={(imageItem) => {
           const index = lightboxImages.findIndex(
             (item) => item.id === imageItem.id
