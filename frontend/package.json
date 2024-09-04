@@ -1,6 +1,6 @@
 {
-  "name": "react-typescript-multiple-image-upload",
-  "version": "0.1.0",
+  "name": "ov-event-photo-share-frontend",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "@headlessui/react": "^2.1.3",

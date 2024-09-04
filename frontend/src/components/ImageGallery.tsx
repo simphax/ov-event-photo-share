@@ -4,9 +4,10 @@ import { memo, useState } from "react";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { Note } from "../types/Note";
 import { UserItem } from "../types/UserItem";
-import { ChevronUp } from "lucide-react";
 import { UserItemsGrid } from "./UserItemsGrid";
 import { getUserId } from "../services/UserService";
+
+const brideGroomUserId = "simonclara";
 
 const ImageGallery: React.FC<{
   groupedItems: UserItem[];
@@ -29,13 +30,16 @@ const ImageGallery: React.FC<{
     const [editMode, setEditMode] = useState<boolean>(false);
 
     const myItems = groupedItems.find((item) => item.userId === getUserId());
+    const brideGroomItems = groupedItems.find(
+      (item) => item.userId === brideGroomUserId
+    );
     const othersItems = groupedItems.filter(
-      (item) => item.userId !== getUserId()
+      (item) => item.userId !== getUserId() && item.userId !== brideGroomUserId
     );
 
     return (
       <AnimatePresence>
-        {myItems && (
+        {(myItems?.imageItems.length || myItems?.notes.length) && (
           <div key="my-photos-section" className="mb-12">
             <div className="flex items-center justify-between">
               <h2
@@ -141,13 +145,33 @@ const ImageGallery: React.FC<{
           </div>
         )}
 
+        {(brideGroomItems?.imageItems.length ||
+          brideGroomItems?.notes.length) && (
+          <div key="bride-groom-section" className="mb-12">
+            <h2
+              key={"bride-groom-title"}
+              className="text-sm my-4 font-semibold tracking-wider"
+            >
+              From the Bride and Groom
+            </h2>
+                <UserItemsGrid
+                  hideUploadedBy
+                  userItem={brideGroomItems}
+                  onImageClick={onImageClick}
+                  onNoteClick={onNoteClick}
+                  onShowAll={onShowAll}
+                  onShowLess={onShowLess}
+                />
+          </div>
+        )}
+
         {othersItems.length > 0 && (
           <div key="all-photos-section">
             <h2
               key={"all-photos-title"}
               className="text-sm mt-4 font-semibold tracking-wider"
             >
-              All photos
+              Guests photos
             </h2>
             {othersItems.map((userItem, index) => (
               <div

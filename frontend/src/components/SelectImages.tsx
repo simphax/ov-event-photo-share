@@ -1,6 +1,8 @@
 import { Button } from "@headlessui/react";
 import { ImageItem } from "../types/ImageItem";
 import { NotebookPen } from "lucide-react";
+import { MaxPhotosNotice } from "./MaxPhotosNotice";
+import { useRef, useState } from "react";
 
 export function SelectImages({
   pendingImageItems,
@@ -26,6 +28,16 @@ export function SelectImages({
   onAddNoteClick: () => void;
 }): JSX.Element {
   const pendingtemsWithError = pendingImageItems.filter((item) => item.error);
+
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  let [isMaxPhotosNoticeOpen, setIsMaxPhotosNoticeOpen] = useState(false);
+  let [hasSeenMaxPhotosNotice, setHasSeenMaxPhotosNotice] = useState(false);
+
+  const handleFileInputOnChange = (...args: any[]) => {
+    setIsMaxPhotosNoticeOpen(false);
+    selectImages(...args);
+  };
 
   if (uploadInProgress) {
     return (
@@ -199,13 +211,23 @@ export function SelectImages({
 
   return (
     <div className="pt-6 text-center">
-      <label className="bg-primary p-4 rounded-full text-primaryText relative overflow-hidden block text-center tracking-wider font-semibold">
+      <label
+        onClick={(e) => {
+          if (!hasSeenMaxPhotosNotice) {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsMaxPhotosNoticeOpen(true);
+          }
+        }}
+        className="bg-primary p-4 rounded-full text-primaryText relative overflow-hidden block text-center tracking-wider font-semibold"
+      >
         <input
           type="file"
           multiple
           accept="image/*"
-          onChange={selectImages}
+          onChange={handleFileInputOnChange}
           className="cursor-pointer absolute inset-0 w-full h-full opacity-0"
+          ref={inputRef}
         />
         Choose photos to share
       </label>
@@ -217,6 +239,17 @@ export function SelectImages({
         <NotebookPen />
         Leave a note
       </Button>
+
+      <MaxPhotosNotice
+        isOpen={isMaxPhotosNoticeOpen}
+        onClose={() => {
+          setIsMaxPhotosNoticeOpen(false);
+        }}
+        onSelectImages={() => {
+          setHasSeenMaxPhotosNotice(true);
+          setTimeout(() => inputRef.current?.click(), 50);
+        }}
+      />
     </div>
   );
 }

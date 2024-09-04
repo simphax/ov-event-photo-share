@@ -1,11 +1,13 @@
 {
-  "name": "sc-photo-upload-server",
+  "name": "ov-event-photo-share-server",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon --ignore metadata/ --ignore thumbnails/ --ignore gallery/ --ignore uploads/ --ignore notes/ server.ts"
+    "start": "nodemon --ignore metadata/ --ignore thumbnails/ --ignore gallery/ --ignore uploads/ --ignore notes/ server.ts",
+    "prebuild": "rimraf build",
+    "build": "tsc"
   },
   "author": "",
   "license": "ISC",
@@ -27,6 +29,7 @@
     "@types/sharp": "0.31.1",
     "@types/uuid": "^10.0.0",
     "nodemon": "^3.1.0",
+    "rimraf": "^6.0.1",
     "typescript": "^5.5.4"
   }
 }

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": "./src",
     "target": "es6",
     "module": "commonjs",
     "moduleResolution": "node",
@@ -9,15 +10,16 @@
     "strict": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "noEmit": true,
+    "noEmit": false,
+    "outDir": "./build",
+    "paths": {
+      "@common/*": [
+        "../common/*"
+      ]
+    },
   },
   "include": [
     "server.ts",
-    "../common",
+    "../common"
   ],
-  "paths": {
-    "@common/*": [
-      "../common/*"
-    ]
-  }
 }

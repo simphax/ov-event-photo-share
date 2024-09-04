@@ -16,8 +16,10 @@ import { NoteDialog } from "./NoteDialog";
 import { NameDialog } from "./NameDialog";
 import { UserItem } from "../types/UserItem";
 import { isNoteSlide, NoteSlide } from "./NoteSlide";
+import { MaxPhotosNotice } from "./MaxPhotosNotice";
 
 const pickRelevantImages = (imageItems: ImageItem[]) => {
+  if(!imageItems) return [];
   const arrayLength = imageItems.length;
   if (arrayLength === 0) return imageItems;
   const numToShow = 9;
@@ -410,7 +412,7 @@ export const AppView: React.FC = () => {
         hiddenItemsCount:
           (groupedImageItems[userId] || []).length - displayedImageItems.length,
         hiddenItemsPreview:
-          groupedImageItems[userId][groupedImageItems[userId].length - 2],
+          groupedImageItems[userId]?.[groupedImageItems[userId].length - 2],
       };
       return userItem;
     });

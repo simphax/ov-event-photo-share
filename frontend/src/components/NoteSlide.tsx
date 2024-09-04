@@ -28,7 +28,7 @@ export function NoteSlide({ slide }: { slide: SlideNote }) {
           <pre className="font-serif break-normal whitespace-pre-wrap">
             {slide.note}
           </pre>
-          <div className="mt-8">/{slide.fromName}</div>
+          <div className="mt-8">/ {slide.fromName}</div>
         </div>
       </div>
     </div>
