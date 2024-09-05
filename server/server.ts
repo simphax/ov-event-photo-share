@@ -1,15 +1,15 @@
 import express, { Request, Response, Express } from "express";
 import cors from "cors";
 import multer, { FileFilterCallback } from "multer";
-import { promises as fs } from "fs";
+import { promises as fs } from "graceful-fs";
 import path from "path";
 import sharp from "sharp";
 import { Server, createServer } from "https";
 import { Sequelize, Model, DataTypes } from "sequelize";
 import { v4 as uuidv4 } from "uuid";
 import { NoteResponseModel } from "../common/types/NoteResponseModel";
-import { ImageItemResponseModel } from "../common/types/ImageItemResponseModel";
 import { NoteCreateRequestModel } from "../common/types/NoteCreateRequestModel";
+import { constants } from "fs/promises";
 
 const UPLOAD_FOLDER_PATH = process.env.UPLOAD_FOLDER_PATH || "uploads/";
 const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
@@ -28,7 +28,53 @@ const corsOptions: cors.CorsOptions = {
   optionsSuccessStatus: 200,
 };
 
+/**
+ * Deletes a file with retries using the `retry` package.
+ * @param {string} filePath - The full path to the file to be deleted.
+ * @param {number} retryInterval - Time to wait before retrying, in milliseconds.
+ * @param {number} maxRetries - Maximum number of retry attempts.
+ 
+const deleteFileWithRetry = async (
+  filePath: string,
+  retryInterval: number = 100,
+  maxRetries: number = 5
+) => {
+  const operation = retry.operation({
+    retries: maxRetries,
+    factor: 1,
+    minTimeout: retryInterval,
+    maxTimeout: retryInterval,
+  });
+
+  operation.attempt((currentAttempt: number) => {
+    console.log(`Attempt ${currentAttempt}: Trying to delete the file...`);
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        if (err.code === "EBUSY" || err.code === "EPERM") {
+          console.log(
+            `File is busy. Retrying after ${retryInterval} milliseconds...`
+          );
+          if (operation.retry(err)) {
+            return;
+          }
+        } else {
+          console.error(`Error: ${err.message}`);
+        }
+      } else {
+        console.log("File deleted successfully");
+      }
+
+      if (operation.attempts() === maxRetries) {
+        console.log("Reached max retries.");
+      }
+    });
+  });
+};
+*/
+
 const startServer = async () => {
+  sharp.cache(false);
+
   const app = express();
 
   let server: Server | Express;
@@ -186,11 +232,14 @@ const startServer = async () => {
           throw new Error("No file uploaded");
         }
 
+        console.log("Creating thumbnail");
         const thumbnailMetadata = await createThumbnail(req.file.path);
+        console.log("Creating gallery image");
         const imageMetadata = await createGalleryImage(req.file.path);
 
         const uploadedDateTime = new Date().toISOString();
 
+        console.log("Saving metadata");
         await fs.writeFile(
           `${METADATA_FOLDER_PATH}/${req.file.filename}.json`,
           JSON.stringify(
@@ -338,57 +387,65 @@ const startServer = async () => {
     }
 
     try {
-      await fs.access(filePath);
+      await fs.access(filePath, constants.R_OK);
 
       res.sendFile(filePath);
     } catch (err) {
+      console.error(err);
       return res.status(404).send("File not found");
     }
   });
 
   router.delete("/gallery/:id", async (req: Request, res: Response) => {
-    let fileName = `${req.params.id}.webp`;
+    let fileName = `${req.params.id}`;
 
     //Sanitation
     fileName = fileName.replace(/(\.\.[\/\\])+/g, "");
 
-    const thumbnailsFilePath = path.resolve(THUMBNAILS_FOLDER_PATH, fileName);
+    const thumbnailFilePath = path.resolve(
+      THUMBNAILS_FOLDER_PATH,
+      `${fileName}.webp`
+    );
 
-    if (!thumbnailsFilePath.startsWith(path.resolve(THUMBNAILS_FOLDER_PATH))) {
+    if (!thumbnailFilePath.startsWith(path.resolve(THUMBNAILS_FOLDER_PATH))) {
       return res.status(400).send("Invalid file path.");
     }
 
     try {
-      await fs.unlink(thumbnailsFilePath);
+      await fs.unlink(thumbnailFilePath);
     } catch (err) {
+      console.error(err);
       return res.status(404).send("File not found");
     }
 
-    const galleryFilePath = path.resolve(GALLERY_FOLDER_PATH, fileName);
-
-    if (!galleryFilePath.startsWith(path.resolve(GALLERY_FOLDER_PATH))) {
-      return res.status(400).send("Invalid file path.");
-    }
-
-    try {
-      await fs.unlink(galleryFilePath);
-    } catch (err) {
-      // Not important
-    }
-
-    fileName = `${req.params.id}`;
-    //Sanitation
-    fileName = fileName.replace(/(\.\.[\/\\])+/g, "");
-
+    const thumbnailMetadataFilePath = path.resolve(
+      THUMBNAILS_FOLDER_PATH,
+      `${fileName}.json`
+    );
+    const galleryFilePath = path.resolve(
+      GALLERY_FOLDER_PATH,
+      `${fileName}.webp`
+    );
+    const galleryMetadataFilePath = path.resolve(
+      GALLERY_FOLDER_PATH,
+      `${fileName}.json`
+    );
+    const metadataFilePath = path.resolve(
+      METADATA_FOLDER_PATH,
+      `${fileName}.json`
+    );
     const originalFilePath = path.resolve(UPLOAD_FOLDER_PATH, fileName);
 
-    if (!originalFilePath.startsWith(path.resolve(UPLOAD_FOLDER_PATH))) {
-      return res.status(400).send("Invalid file path.");
-    }
-
     try {
-      await fs.unlink(originalFilePath);
+      await Promise.all([
+        fs.unlink(thumbnailMetadataFilePath),
+        fs.unlink(galleryFilePath),
+        fs.unlink(galleryMetadataFilePath),
+        fs.unlink(metadataFilePath),
+        fs.unlink(originalFilePath),
+      ]);
     } catch (err) {
+      console.error(err);
       // Not important
     }
 
