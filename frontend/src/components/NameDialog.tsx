@@ -7,6 +7,7 @@ import {
 } from "@headlessui/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
+import { LoadingSpinner } from "./LoadingSpinner";
 
 export const NameDialog = ({
   isOpen,
@@ -33,7 +34,10 @@ export const NameDialog = ({
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/80 backdrop-blur-md"
             />
-            <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
+            <div className="fixed inset-0 flex w-screen flex-col items-center justify-center p-4">
+              <div className="flex items-center justify-center gap-2 mb-10 -mt-10">
+                <LoadingSpinner /> Uploading
+              </div>
               <DialogPanel
                 as={motion.div}
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -42,9 +46,8 @@ export const NameDialog = ({
                 className="max-w-lg w-full space-y-4 bg-white p-8"
               >
                 <DialogTitle className="text-lg font-bold">
-                  Thanks! What is your name?
+                  What is your name?
                 </DialogTitle>
-
                 <Input
                   value={name}
                   className="border p-4 font-serif border-primary/50 rounded-xl data-[focus]:border-transparent bg-none w-full bg-transparent"
@@ -52,7 +55,7 @@ export const NameDialog = ({
                 />
                 <div className="flex justify-end gap-4">
                   <Button
-                    className="bg-primary/10 rounded-full px-8 py-2"
+                    className="bg-primary/10 rounded-full px-8 h-12 w-full"
                     onClick={() => onSetName(name)}
                   >
                     Continue

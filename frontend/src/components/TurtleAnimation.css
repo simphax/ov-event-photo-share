@@ -1,0 +1,12 @@
+.turtle-walk {
+  animation: turtle-walk 30s infinite linear;
+}
+
+@keyframes turtle-walk {
+  0% {
+    left: -20vw;
+  }
+  100% {
+    left: 100vw;
+  }
+}

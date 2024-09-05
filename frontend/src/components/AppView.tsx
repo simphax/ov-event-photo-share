@@ -9,6 +9,8 @@ import Lightbox, { SlideNote, SlideImageExt } from "yet-another-react-lightbox";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
 
+import { ReactComponent as Sigill } from "../sigill.svg";
+
 import "./AppView.css";
 import "./ProgressBar.css";
 import { Note } from "../types/Note";
@@ -18,8 +20,10 @@ import { UserItem } from "../types/UserItem";
 import { isNoteSlide, NoteSlide } from "./NoteSlide";
 import { MaxPhotosNotice } from "./MaxPhotosNotice";
 
+import { Turtle } from "./Turtle";
+
 const pickRelevantImages = (imageItems: ImageItem[]) => {
-  if(!imageItems) return [];
+  if (!imageItems) return [];
   const arrayLength = imageItems.length;
   if (arrayLength === 0) return imageItems;
   const numToShow = 9;
@@ -475,19 +479,31 @@ export const AppView: React.FC = () => {
 
   return (
     <div className="mb-10">
-      <div style={{ height: "180px" }}>
-        <SelectImages
-          pendingImageItems={pendingImageItems}
-          setPendingImageItems={setPendingImageItems}
-          uploadImages={uploadImages}
-          uploadInProgress={uploadInProgress}
-          oneUploadDone={oneUploadDone}
-          pendingImageAngles={pendingImageAngles}
-          combinedProgress={combinedProgress}
-          selectImages={selectImages}
-          cancelUpload={cancelUpload}
-          onAddNoteClick={() => setIsNoteDialogOpen(true)}
-        />
+      <div className="flex flex-col h-[70vh]">
+        <div className="flex justify-center mt-28 mx-auto">
+          <Sigill />
+        </div>
+        {/* <div className="font-serif text-center text-primary">
+          The Wedding of Simon & Clara
+        </div> */}
+        <div
+          className="grow flex justify-center flex-col"
+          style={{ minHeight: "200px" }}
+        >
+          <SelectImages
+            pendingImageItems={pendingImageItems}
+            setPendingImageItems={setPendingImageItems}
+            uploadImages={uploadImages}
+            uploadInProgress={uploadInProgress}
+            oneUploadDone={oneUploadDone}
+            pendingImageAngles={pendingImageAngles}
+            combinedProgress={combinedProgress}
+            selectImages={selectImages}
+            cancelUpload={cancelUpload}
+            onAddNoteClick={() => setIsNoteDialogOpen(true)}
+          />
+          {uploadInProgress && <Turtle />}
+        </div>
       </div>
       <ImageGallery
         groupedItems={groupedItems}

@@ -76,11 +76,11 @@ export const NoteDialog = ({
                   />
                 </Field>
                 <div className="flex justify-end gap-4">
-                  <Button className="px-8 py-2" onClick={() => onCancel()}>
+                  <Button className="px-8 h-12" onClick={() => onCancel()}>
                     Cancel
                   </Button>
                   <Button
-                    className="bg-primary/10 rounded-full px-8 py-2"
+                    className="bg-primary/10 rounded-full px-12 h-12"
                     onClick={() => onAddNote(note, name)}
                   >
                     Add note

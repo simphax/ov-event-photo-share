@@ -51,7 +51,7 @@
 
 .image-gallery > li.image-gallery-note {
   animation: appear 0.4s 0.2s backwards;
-  background-color: #d9d9d9;
+  background-color: rgb(221, 210, 192);
   background-image: none;
   color: #222;
   font-family: "Times New Roman", Times, serif;
@@ -76,8 +76,8 @@
   /* Gradient */
   background-image: linear-gradient(
     to right,
-    rgba(217, 217, 217, 0),
-    rgba(217, 217, 217, 1) 50%
+    rgba(221, 210, 192, 0),
+    rgba(221, 210, 192, 1) 50%
   );
 }
 

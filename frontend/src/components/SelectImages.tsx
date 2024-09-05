@@ -1,6 +1,6 @@
 import { Button } from "@headlessui/react";
 import { ImageItem } from "../types/ImageItem";
-import { NotebookPen } from "lucide-react";
+import { Check, NotebookPen } from "lucide-react";
 import { MaxPhotosNotice } from "./MaxPhotosNotice";
 import { useRef, useState } from "react";
 
@@ -165,8 +165,9 @@ export function SelectImages({
   if (oneUploadDone) {
     return (
       <>
-        <div className="flex align-center justify-center">
-          <svg
+        <div className="flex align-center justify-center text-primary">
+          <Check size={28} />
+          {/* <svg
             width="33"
             height="33"
             viewBox="0 0 33 33"
@@ -175,18 +176,18 @@ export function SelectImages({
           >
             <g>
               <path
+                className="fill-primary"
                 d="M12.3752 22.2338L6.64146 16.5L4.68896 18.4388L12.3752 26.125L28.8752 9.62503L26.9365 7.68628L12.3752 22.2338Z"
-                fill="#DDD2C0"
               />
             </g>
-          </svg>
+          </svg> */}
         </div>
-        <p className="text-center font-serif mt-3">
-          Thank you so much, you are so appreciated!
+        <p className="text-center text-lg font-serif mt-2 mb-5 text-primary">
+          Awesome!
         </p>
 
         <div className="py-6 flex gap-4">
-          <label className="bg-primary w-full flex items-center justify-center rounded-full text-primaryText relative overflow-hidden text-center tracking-wider font-semibold">
+          <label className="bg-primary w-full flex items-center justify-center rounded-full text-primaryText relative overflow-hidden text-center font-semibold">
             <input
               type="file"
               multiple
@@ -198,10 +199,10 @@ export function SelectImages({
           </label>
 
           <Button
-            className="text-primary w-full py-3 font-semibold px-10 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
+            className="text-primary w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
             onClick={onAddNoteClick}
           >
-            <NotebookPen />
+            <NotebookPen size={20} />
             Leave a note
           </Button>
         </div>
@@ -210,7 +211,7 @@ export function SelectImages({
   }
 
   return (
-    <div className="pt-6 text-center">
+    <div className="text-center">
       <label
         onClick={(e) => {
           if (!hasSeenMaxPhotosNotice) {
@@ -219,7 +220,7 @@ export function SelectImages({
             setIsMaxPhotosNoticeOpen(true);
           }
         }}
-        className="bg-primary p-4 rounded-full text-primaryText relative overflow-hidden block text-center tracking-wider font-semibold"
+        className="bg-primary h-14 items-center justify-center rounded-full text-primaryText relative overflow-hidden flex text-center font-semibold"
       >
         <input
           type="file"
@@ -229,14 +230,14 @@ export function SelectImages({
           className="cursor-pointer absolute inset-0 w-full h-full opacity-0"
           ref={inputRef}
         />
-        Choose photos to share
+        Share photos
       </label>
 
       <Button
-        className="text-primary py-3 font-semibold px-10 mx-auto flex gap-2 items-center justify-center bg-primary/10 rounded-full mt-3"
+        className="text-primary h-14 font-semibold px-10 mx-auto flex gap-3 items-center justify-center bg-primary/10 rounded-full mt-6"
         onClick={onAddNoteClick}
       >
-        <NotebookPen />
+        <NotebookPen size={22} />
         Leave a note
       </Button>
 

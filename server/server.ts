@@ -18,7 +18,7 @@ const THUMBNAILS_FOLDER_PATH =
   process.env.THUMBNAILS_FOLDER_PATH || "thumbnails/";
 const GALLERY_FOLDER_PATH = process.env.GALLERY_FOLDER_PATH || "gallery/";
 const SERVER_PORT = process.env.SERVER_PORT || 5050;
-const SERVER_URL = process.env.SERVER_URL || "http://localhost:5050";
+const SERVER_URL = process.env.SERVER_URL || "http://192.168.1.247:5050";
 const SERVER_BASE_PATH = process.env.SERVER_BASE_PATH || "/";
 const SSL_PRIVATE_KEY_PATH = process.env.SSL_PRIVATE_KEY_PATH || false;
 const SSL_CERTIFICATE_PATH = process.env.SSL_CERTIFICATE_PATH || false;
