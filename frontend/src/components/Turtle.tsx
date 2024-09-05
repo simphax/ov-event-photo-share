@@ -4,7 +4,7 @@ import "./TurtleAnimation.css";
 export const Turtle = () => {
   return (
     <div className="relative">
-      <img alt="turtle" className="w-7 absolute turtle-walk" src={turtle} />
+      <img alt="turtle" className="w-8 absolute turtle-walk" src={turtle} />
     </div>
   );
 };
