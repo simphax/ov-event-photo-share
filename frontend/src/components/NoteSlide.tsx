@@ -4,15 +4,21 @@ declare module "yet-another-react-lightbox" {
   export interface SlideNote extends GenericSlide {
     type: "note";
     id: string;
+    userId: string;
     note: string;
     fromName: string;
   }
   export interface SlideImageExt extends SlideImage {
     id: string;
+    userId: string;
   }
 
   interface SlideTypes {
     note: SlideNote;
+  }
+
+  interface Labels {
+    Delete?: string;
   }
 }
 
@@ -23,7 +29,7 @@ export function isNoteSlide(slide: Slide): slide is SlideNote {
 export function NoteSlide({ slide }: { slide: SlideNote }) {
   return (
     <div>
-      <div className="container">
+      <div className="container pointer-events-none">
         <div className="bg-primary rounded-xl font-serif text-primaryText px-8 py-12 min-w-64 leading-loose max-h-[70vh] overflow-scroll">
           <pre className="font-serif break-normal whitespace-pre-wrap">
             {slide.note}

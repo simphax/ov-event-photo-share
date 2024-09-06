@@ -46,9 +46,9 @@ export const UpdatesNotifier = ({
         className="fixed cursor-pointer bottom-6 left-0 flex items-center w-full justify-center"
         onClick={onRefresh}
       >
-        <div className="rounded-full bg-notification text-primaryText flex justify-center items-center text-sm px-4 h-8 shadow-lg">
-          <div>{remoteGalleryCount - galleryCount} new photos</div>
-          <div className="border-l border-t-primaryText/60 mx-2 h-4"></div>
+        <div className="rounded-full bg-notification text-primaryText gap-3 flex justify-center items-center text-sm px-4 h-10 shadow-lg">
+          <div>{remoteGalleryCount - galleryCount} new</div>
+          {/* <div className="border-l border-t-primaryText/60 mx-2 h-4"></div> */}
           <div className="flex items-center gap-1">
             <RefreshCw size={16} />
 

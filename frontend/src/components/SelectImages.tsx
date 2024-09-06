@@ -188,7 +188,7 @@ export function SelectImages({
           </label>
 
           <Button
-            className="text-primary w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
+            className="text-primaryText w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
             onClick={onAddNoteClick}
           >
             <NotebookPen size={20} />
@@ -222,7 +222,7 @@ export function SelectImages({
           </label>
 
           <Button
-            className="text-primary w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
+            className="text-primaryText w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
             onClick={onAddNoteClick}
           >
             <NotebookPen size={20} />
@@ -257,7 +257,7 @@ export function SelectImages({
       </label>
 
       <Button
-        className="text-primary h-14 font-semibold px-10 mx-auto flex gap-3 items-center justify-center bg-primary/10 rounded-full mt-6"
+        className="text-primaryText shadow h-14 font-semibold px-10 mx-auto flex gap-3 items-center justify-center bg-primary/20 rounded-full mt-6"
         onClick={onAddNoteClick}
       >
         <NotebookPen size={22} />

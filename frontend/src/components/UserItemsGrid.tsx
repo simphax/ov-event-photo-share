@@ -4,6 +4,8 @@ import { Note } from "../types/Note";
 import { UserItem } from "../types/UserItem";
 import { ChevronUp } from "lucide-react";
 import { memo } from "react";
+import { maxItemsBeforeShowMore } from "./constants";
+import { getUserId } from "../services/UserService";
 
 type UserItemsGridProps = {
   userItem: UserItem;
@@ -32,9 +34,14 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
         {!hideUploadedBy && (
           <h2
             key={"uploaded-by-title"}
-            className={`text-xs mb-3 tracking-wider text-primary/60 text-left`}
+            className={`text-xs mb-3 tracking-wider text-primaryText/60 text-left`}
           >
-            Uploaded by: {userItem.userName}
+            Uploaded by: {userItem.userName}{" "}
+            {userItem.userId === getUserId() && (
+              <span className="inline-block ml-3 bg-primary/100 text-primaryText rounded px-1 py-[2px] font-semibold">
+                You!
+              </span>
+            )}
           </h2>
         )}
         <motion.ul layout key={"all-photos-list"} className="image-gallery">
@@ -98,18 +105,19 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
             </motion.li>
           )}
         </motion.ul>
-        {userItem.isShowingAllItems && userItem.imageItems.length > 9 && (
-          <motion.div
-            layout
-            className="cursor-pointer mt-4 relative image-gallery-show-more w-full rounded-lg h-7 bg-black/20 flex items-center justify-center text-sm font-semibold text-primary"
-            key={"show-less"}
-            onClick={() => onShowLess(userItem.userId)}
-          >
-            <div className="w-full flex items-center justify-center">
-              <ChevronUp className="mr-2" /> Show less
-            </div>
-          </motion.div>
-        )}
+        {userItem.isShowingAllItems &&
+          userItem.imageItems.length > maxItemsBeforeShowMore && (
+            <motion.div
+              layout
+              className="cursor-pointer mt-4 relative image-gallery-show-more w-full rounded-lg h-7 bg-black/20 flex items-center justify-center text-sm font-semibold text-primary"
+              key={"show-less"}
+              onClick={() => onShowLess(userItem.userId)}
+            >
+              <div className="w-full flex items-center justify-center">
+                <ChevronUp className="mr-2" /> Show less
+              </div>
+            </motion.div>
+          )}
       </>
     );
   }

@@ -29,17 +29,17 @@ const ImageGallery: React.FC<{
   }) => {
     const [editMode, setEditMode] = useState<boolean>(false);
 
-    const myItems = groupedItems.find((item) => item.userId === getUserId());
+    // const myItems = groupedItems.find((item) => item.userId === getUserId());
     const brideGroomItems = groupedItems.find(
       (item) => item.userId === brideGroomUserId
     );
     const othersItems = groupedItems.filter(
-      (item) => item.userId !== getUserId() && item.userId !== brideGroomUserId
+      (item) => item.userId !== brideGroomUserId
     );
 
     return (
       <AnimatePresence>
-        {(myItems?.imageItems.length || myItems?.notes.length) && (
+        {/* {(myItems?.imageItems.length || myItems?.notes.length) && (
           <div key="my-photos-section" className="mb-12">
             <div className="flex items-center justify-between">
               <h2
@@ -143,27 +143,7 @@ const ImageGallery: React.FC<{
               }
             />
           </div>
-        )}
-
-        {(brideGroomItems?.imageItems.length ||
-          brideGroomItems?.notes.length) && (
-          <div key="bride-groom-section" className="mb-12">
-            <h2
-              key={"bride-groom-title"}
-              className="text-sm my-4 font-semibold tracking-wider"
-            >
-              From the Bride and Groom
-            </h2>
-            <UserItemsGrid
-              hideUploadedBy
-              userItem={brideGroomItems}
-              onImageClick={onImageClick}
-              onNoteClick={onNoteClick}
-              onShowAll={onShowAll}
-              onShowLess={onShowLess}
-            />
-          </div>
-        )}
+        )} */}
 
         {othersItems.length > 0 && (
           <div key="all-photos-section">
@@ -172,7 +152,7 @@ const ImageGallery: React.FC<{
               className="text-sm mt-4 font-semibold tracking-wider"
               id="guest-photos-title"
             >
-              Guests photos
+              Guest photos
             </h2>
             {othersItems.map((userItem, index) => (
               <div
@@ -188,6 +168,26 @@ const ImageGallery: React.FC<{
                 />
               </div>
             ))}
+          </div>
+        )}
+
+        {(brideGroomItems?.imageItems.length ||
+          brideGroomItems?.notes.length) && (
+          <div key="bride-groom-section" className="mt-12">
+            <h2
+              key={"bride-groom-title"}
+              className="text-sm my-4 font-semibold tracking-wider"
+            >
+              From the Bride and Groom
+            </h2>
+            <UserItemsGrid
+              hideUploadedBy
+              userItem={brideGroomItems}
+              onImageClick={onImageClick}
+              onNoteClick={onNoteClick}
+              onShowAll={onShowAll}
+              onShowLess={onShowLess}
+            />
           </div>
         )}
       </AnimatePresence>

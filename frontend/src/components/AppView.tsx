@@ -5,9 +5,16 @@ import { ImageItem } from "../types/ImageItem";
 import ImageGallery from "./ImageGallery";
 import { getUserId, getUserName, setUserName } from "../services/UserService";
 import { SelectImages } from "./SelectImages";
-import Lightbox, { SlideNote, SlideImageExt } from "yet-another-react-lightbox";
+import Lightbox, {
+  SlideNote,
+  SlideImageExt,
+  IconButton,
+  useLightboxState,
+  Slide,
+} from "yet-another-react-lightbox";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import toast, { Toaster } from "react-hot-toast";
 
 import { ReactComponent as Sigill } from "../sigill.svg";
 
@@ -18,27 +25,52 @@ import { NoteDialog } from "./NoteDialog";
 import { NameDialog } from "./NameDialog";
 import { UserItem } from "../types/UserItem";
 import { isNoteSlide, NoteSlide } from "./NoteSlide";
-import { MaxPhotosNotice } from "./MaxPhotosNotice";
 
 import { Turtle } from "./Turtle";
 import { UpdatesNotifier } from "./UpdatesNotifier";
+import { maxItemsBeforeShowMore } from "./constants";
+import { Trash2Icon } from "lucide-react";
 
 const pickRelevantImages = (imageItems: ImageItem[]) => {
   if (!imageItems) return [];
   const arrayLength = imageItems.length;
   if (arrayLength === 0) return imageItems;
-  const numToShow = 9;
-  if (arrayLength <= numToShow) return imageItems;
+  if (arrayLength <= maxItemsBeforeShowMore) return imageItems;
 
-  const result: ImageItem[] = [];
+  return imageItems.slice(0, maxItemsBeforeShowMore - 1);
 
-  const last = imageItems[imageItems.length - 1];
+  // const result: ImageItem[] = [];
 
-  for (let i = 0; i < numToShow - 1; i++) {
-    const index = Math.floor((i * arrayLength) / (numToShow - 1));
-    result.push(imageItems[index]);
-  }
-  return result.concat(last);
+  // const last = imageItems[imageItems.length - 1];
+
+  // for (let i = 0; i < maxItemsBeforeShowMore - 1; i++) {
+  //   const index = Math.floor((i * arrayLength) / (maxItemsBeforeShowMore - 1));
+  //   result.push(imageItems[index]);
+  // }
+  // return result.concat(last);
+};
+
+const DeleteButton = ({
+  onClick,
+}: {
+  onClick: (currentSlide: Slide | undefined) => void;
+}) => {
+  const { currentSlide } = useLightboxState();
+  if (!currentSlide) return null;
+
+  let canDelete = (currentSlide as SlideImageExt).userId === getUserId();
+
+  if (!canDelete) return null;
+
+  return (
+    <IconButton
+      className="fixed top-3 left-2"
+      label="Delete"
+      icon={Trash2Icon}
+      renderIcon={() => <Trash2Icon size={28} />}
+      onClick={() => onClick(currentSlide)}
+    />
+  );
 };
 
 export const AppView: React.FC = () => {
@@ -64,6 +96,17 @@ export const AppView: React.FC = () => {
 
   let [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   let [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
+
+  const sortedItems: (Note | ImageItem)[] = useMemo(() => {
+    return [...allNotes, ...allImageItems].sort((a, b) => {
+      const bDate =
+        (b as Note).createdDateTime || (b as ImageItem).uploadedDateTime;
+      const aDate =
+        (a as Note).createdDateTime || (a as ImageItem).uploadedDateTime;
+
+      return bDate.getTime() - aDate.getTime();
+    });
+  }, [allImageItems, allNotes]);
 
   const sortedImageItems = useMemo(() => {
     return [...allImageItems].sort(
@@ -256,52 +299,64 @@ export const AppView: React.FC = () => {
     setUploadInProgress(false);
   }, [pendingImageItems, upload, userName]);
 
-  const deleteImage = useCallback(async (imageItem: ImageItem) => {
-    try {
-      setAllImageItems((currentItems) =>
-        currentItems.map((item) =>
-          item.id === imageItem.id ? { ...item, loadingDelete: true } : item
-        )
-      );
-      if (imageItem.remoteId)
-        await BackendService.deleteImageItem(imageItem.remoteId);
+  const deleteImage = useCallback(
+    async (imageItemId: string) => {
+      const imageItem = allImageItems.find((item) => item.id === imageItemId);
+      if (!imageItem) return;
+      try {
+        setAllImageItems((currentItems) =>
+          currentItems.map((item) =>
+            item.id === imageItem.id ? { ...item, loadingDelete: true } : item
+          )
+        );
+        if (imageItem.remoteId)
+          await BackendService.deleteImageItem(imageItem.remoteId);
 
-      const filterItems = (array: ImageItem[]) =>
-        array.filter((item) => item.id !== imageItem.id);
+        const filterItems = (array: ImageItem[]) =>
+          array.filter((item) => item.id !== imageItem.id);
 
-      setAllImageItems(filterItems);
-    } catch (error) {
-      setAllImageItems((currentItems) =>
-        currentItems.map((item) =>
-          item.id === imageItem.id ? { ...item, loadingDelete: false } : item
-        )
-      );
-      console.error("Could not delete image", error);
-    }
-  }, []);
+        setAllImageItems(filterItems);
+        toast.success("Image deleted");
+      } catch (error) {
+        setAllImageItems((currentItems) =>
+          currentItems.map((item) =>
+            item.id === imageItem.id ? { ...item, loadingDelete: false } : item
+          )
+        );
+        console.error("Could not delete image", error);
+      }
+    },
+    [allImageItems]
+  );
 
-  const deleteNote = useCallback(async (note: Note) => {
-    try {
-      setAllNotes((currentNotes) =>
-        currentNotes.map((item) =>
-          item.id === note.id ? { ...item, loadingDelete: true } : item
-        )
-      );
-      await BackendService.deleteNote(note.id);
+  const deleteNote = useCallback(
+    async (noteId: string) => {
+      const note = allNotes.find((item) => item.id === noteId);
+      if (!note) return;
+      try {
+        setAllNotes((currentNotes) =>
+          currentNotes.map((item) =>
+            item.id === note.id ? { ...item, loadingDelete: true } : item
+          )
+        );
+        await BackendService.deleteNote(note.id);
 
-      const filterNotes = (array: Note[]) =>
-        array.filter((item) => item.id !== note.id);
+        const filterNotes = (array: Note[]) =>
+          array.filter((item) => item.id !== note.id);
 
-      setAllNotes(filterNotes);
-    } catch (error) {
-      setAllNotes((currentNotes) =>
-        currentNotes.map((item) =>
-          item.id === note.id ? { ...item, loadingDelete: false } : item
-        )
-      );
-      console.error("Could not delete note", error);
-    }
-  }, []);
+        setAllNotes(filterNotes);
+        toast.success("Note deleted");
+      } catch (error) {
+        setAllNotes((currentNotes) =>
+          currentNotes.map((item) =>
+            item.id === note.id ? { ...item, loadingDelete: false } : item
+          )
+        );
+        console.error("Could not delete note", error);
+      }
+    },
+    [allNotes]
+  );
 
   //Automatic upload
   useEffect(() => {
@@ -352,6 +407,15 @@ export const AppView: React.FC = () => {
   };
 
   const groupedItems: UserItem[] = useMemo(() => {
+    const groupedItemses: { [key: string]: (Note | ImageItem)[] } =
+      sortedItems.reduce((acc, note) => {
+        if (!acc[note.userId]) {
+          acc[note.userId] = [];
+        }
+        acc[note.userId].push(note);
+        return acc;
+      }, {} as { [key: string]: (Note | ImageItem)[] });
+
     const groupedNotes: { [key: string]: Note[] } = sortedNotes.reduce(
       (acc, note) => {
         if (!acc[note.userId]) {
@@ -372,9 +436,7 @@ export const AppView: React.FC = () => {
         return acc;
       }, {} as { [key: string]: ImageItem[] });
 
-    const userIdsWithContent = new Set(
-      Object.keys(groupedNotes).concat(Object.keys(groupedImageItems))
-    );
+    const userIdsWithContent = new Set(Object.keys(groupedItemses));
 
     const userIdsWithContentArray = Array.from(userIdsWithContent);
 
@@ -401,17 +463,24 @@ export const AppView: React.FC = () => {
         hiddenItemsCount:
           (groupedImageItems[userId] || []).length - displayedImageItems.length,
         hiddenItemsPreview:
-          groupedImageItems[userId]?.[groupedImageItems[userId].length - 2],
+          groupedImageItems[userId]?.[maxItemsBeforeShowMore - 1],
       };
       return userItem;
     });
 
     return result;
-  }, [sortedNotes, sortedImageItems, userNames, usersShowAllImages]);
+  }, [
+    sortedItems,
+    sortedNotes,
+    sortedImageItems,
+    usersShowAllImages,
+    userNames,
+  ]);
 
-  const lightboxImages: (SlideImageExt | SlideNote)[] = useMemo(() => {
+  const lightboxSlides: (SlideImageExt | SlideNote)[] = useMemo(() => {
     const mapImageItemToSlide = (imageItem: ImageItem): SlideImageExt => ({
       id: imageItem.id,
+      userId: imageItem.userId,
       src: imageItem.image!.url,
       alt: imageItem.name,
       download: {
@@ -423,6 +492,7 @@ export const AppView: React.FC = () => {
     const mapNoteToSlide = (note: Note): SlideNote => ({
       type: "note",
       id: note.id,
+      userId: note.userId,
       note: note.content,
       fromName: note.userName,
     });
@@ -435,9 +505,22 @@ export const AppView: React.FC = () => {
   }, [groupedItems]);
 
   const galleryCount = useMemo(
-    () => sortedNotes.length + sortedImageItems.length,
-    [sortedNotes, sortedImageItems]
+    () => allNotes.length + allImageItems.length,
+    [allNotes, allImageItems]
   );
+
+  const deleteImageFromLightbox = (currentSlide: Slide | undefined) => {
+    if (!currentSlide) return;
+
+    console.log("Deleting slide", currentSlide);
+
+    if (isNoteSlide(currentSlide)) {
+      deleteNote(currentSlide.id);
+    } else {
+      const slide = currentSlide as SlideImageExt;
+      deleteImage(slide.id);
+    }
+  };
 
   return (
     <div className="mb-10">
@@ -469,19 +552,19 @@ export const AppView: React.FC = () => {
       </div>
       <ImageGallery
         groupedItems={groupedItems}
-        onDeleteImage={deleteImage}
-        onDeleteNote={deleteNote}
+        onDeleteImage={(imageItem) => deleteImage(imageItem.id)}
+        onDeleteNote={(note) => deleteNote(note.id)}
         onShowAll={showAllImagesForUser}
         onShowLess={showLessImagesForUser}
         onImageClick={(imageItem) => {
-          const index = lightboxImages.findIndex(
+          const index = lightboxSlides.findIndex(
             (item) => item.id === imageItem.id
           );
           setCurrentIndex(index);
           setLightboxOpen(true);
         }}
         onNoteClick={(note) => {
-          const index = lightboxImages.findIndex((item) => item.id === note.id);
+          const index = lightboxSlides.findIndex((item) => item.id === note.id);
           setCurrentIndex(index);
           setLightboxOpen(true);
         }}
@@ -494,7 +577,7 @@ export const AppView: React.FC = () => {
         }}
         open={lightboxOpen}
         close={() => setLightboxOpen(false)}
-        slides={lightboxImages}
+        slides={lightboxSlides}
         index={currentImageIndex}
         on={{ view: ({ index }) => setCurrentIndex(index) }}
         styles={{
@@ -506,6 +589,13 @@ export const AppView: React.FC = () => {
           finite: true,
         }}
         animation={{ fade: 400 }}
+        toolbar={{
+          buttons: [
+            <DeleteButton key="my-button" onClick={deleteImageFromLightbox} />,
+            "download",
+            "close",
+          ],
+        }}
         render={{
           buttonPrev: () => null,
           buttonNext: () => null,
@@ -531,6 +621,10 @@ export const AppView: React.FC = () => {
                 loadingDelete: false,
               };
               setUserName(note.userName);
+              setUserNames((currentNames) => ({
+                ...currentNames,
+                [note.userId]: note.userName,
+              }));
               setAllNotes((currentNotes) => [newNote, ...currentNotes]);
               setSuccessType("note");
             })
@@ -547,13 +641,17 @@ export const AppView: React.FC = () => {
           try {
             await BackendService.setUserName(getUserId(), name);
             setUserName(name);
+            setUserNames((currentNames) => ({
+              ...currentNames,
+              [getUserId()]: getUserName(),
+            }));
           } catch (error) {
             console.error("Could not set name", error);
           }
         }}
       />
-      {galleryCount}
       <UpdatesNotifier galleryCount={galleryCount} onRefresh={handleRefresh} />
+      <Toaster containerStyle={{ zIndex: 10000 }} position="bottom-center" />
     </div>
   );
 };
