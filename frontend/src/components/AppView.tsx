@@ -29,7 +29,7 @@ import { isNoteSlide, NoteSlide } from "./NoteSlide";
 import { Turtle } from "./Turtle";
 import { UpdatesNotifier } from "./UpdatesNotifier";
 import { maxItemsBeforeShowMore } from "./constants";
-import { Trash2Icon } from "lucide-react";
+import { Loader, Trash2Icon } from "lucide-react";
 
 const pickRelevantImages = (imageItems: ImageItem[]) => {
   if (!imageItems) return [];
@@ -53,8 +53,9 @@ const pickRelevantImages = (imageItems: ImageItem[]) => {
 const DeleteButton = ({
   onClick,
 }: {
-  onClick: (currentSlide: Slide | undefined) => void;
+  onClick: (currentSlide: Slide | undefined) => Promise<void>;
 }) => {
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const { currentSlide } = useLightboxState();
   if (!currentSlide) return null;
 
@@ -67,8 +68,20 @@ const DeleteButton = ({
       className="fixed top-3 left-2"
       label="Delete"
       icon={Trash2Icon}
-      renderIcon={() => <Trash2Icon size={28} />}
-      onClick={() => onClick(currentSlide)}
+      renderIcon={() =>
+        isDeleting ? (
+          <Loader className="animate-spin" />
+        ) : (
+          <Trash2Icon size={28} />
+        )
+      }
+      onClick={async () => {
+        setIsDeleting(true);
+        try {
+          await onClick(currentSlide);
+        } catch {}
+        setIsDeleting(false);
+      }}
     />
   );
 };
@@ -509,22 +522,22 @@ export const AppView: React.FC = () => {
     [allNotes, allImageItems]
   );
 
-  const deleteImageFromLightbox = (currentSlide: Slide | undefined) => {
+  const deleteImageFromLightbox = async (currentSlide: Slide | undefined) => {
     if (!currentSlide) return;
 
     console.log("Deleting slide", currentSlide);
 
     if (isNoteSlide(currentSlide)) {
-      deleteNote(currentSlide.id);
+      await deleteNote(currentSlide.id);
     } else {
       const slide = currentSlide as SlideImageExt;
-      deleteImage(slide.id);
+      await deleteImage(slide.id);
     }
   };
 
   return (
-    <div className="mb-10">
-      <div className="flex flex-col h-[70vh]">
+    <div className="pb-10">
+      <div className="flex flex-col h-[75vh]">
         <div className="flex justify-center mt-28 mx-auto">
           <Sigill />
         </div>
@@ -532,7 +545,7 @@ export const AppView: React.FC = () => {
           The Wedding of Simon & Clara
         </div> */}
         <div
-          className="grow flex justify-center flex-col px-4"
+          className="grow flex justify-center flex-col px-4 -mt-8"
           style={{ minHeight: "200px" }}
         >
           <SelectImages
@@ -550,6 +563,9 @@ export const AppView: React.FC = () => {
           {uploadInProgress && <Turtle />}
         </div>
       </div>
+      <h1 className="-mt-9 pl-4 text-primaryText font-semibold text text-sm mb-2">
+        Guest photos
+      </h1>
       <ImageGallery
         groupedItems={groupedItems}
         onDeleteImage={(imageItem) => deleteImage(imageItem.id)}

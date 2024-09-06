@@ -148,13 +148,13 @@ const ImageGallery: React.FC<{
 
           {othersItems.length > 0 && (
             <div key="all-photos-section">
-              <h2
+              {/*<h2
                 key={"all-photos-title"}
                 className="text-sm mt-4 font-semibold tracking-wider"
                 id="guest-photos-title"
               >
                 Guest photos
-              </h2>
+              </h2>*/}
               {othersItems.map((userItem, index) => (
                 <div
                   key={userItem.userId}
