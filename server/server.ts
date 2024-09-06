@@ -20,7 +20,7 @@ const THUMBNAILS_FOLDER_PATH =
   process.env.THUMBNAILS_FOLDER_PATH || "thumbnails/";
 const GALLERY_FOLDER_PATH = process.env.GALLERY_FOLDER_PATH || "gallery/";
 const SERVER_PORT = process.env.SERVER_PORT || 5050;
-const SERVER_URL = process.env.SERVER_URL || "http://192.168.1.247:5050";
+const SERVER_URL = process.env.SERVER_URL || "http://localhost:5050";
 const SERVER_BASE_PATH = process.env.SERVER_BASE_PATH || "/";
 const SSL_PRIVATE_KEY_PATH = process.env.SSL_PRIVATE_KEY_PATH || false;
 const SSL_CERTIFICATE_PATH = process.env.SSL_CERTIFICATE_PATH || false;
@@ -251,13 +251,14 @@ const startServer = async () => {
       if (galleryCountCache) return res.json({ count: galleryCountCache });
 
       try {
-        const files = await fs.readdir(THUMBNAILS_FOLDER_PATH);
+        const imageFiles = await fs.readdir(THUMBNAILS_FOLDER_PATH);
+        const noteFiles = await fs.readdir(NOTES_FOLDER_PATH);
 
-        const images: any[] = files.filter((fileName) =>
+        const images: any[] = imageFiles.filter((fileName) =>
           fileName.endsWith(".webp")
         );
 
-        galleryCountCache = images.length;
+        galleryCountCache = images.length + noteFiles.length;
 
         res.json({ count: galleryCountCache });
       } catch (err) {
@@ -473,6 +474,8 @@ const startServer = async () => {
       // Not important
     }
 
+    galleryCountCache = undefined;
+
     return res.status(204).json({
       id: req.params.id,
       message: "File deleted successfully",
@@ -560,6 +563,8 @@ const startServer = async () => {
         createdDateTime,
       };
 
+      galleryCountCache = undefined;
+
       return res.status(201).json(returnNote);
     } catch (error) {
       console.error(error);
@@ -587,6 +592,8 @@ const startServer = async () => {
     } catch (err) {
       return res.status(404).send("File not found");
     }
+
+    galleryCountCache = undefined;
 
     return res.status(204).json({
       id: req.params.id,

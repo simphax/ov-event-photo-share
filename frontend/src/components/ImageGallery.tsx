@@ -170,6 +170,7 @@ const ImageGallery: React.FC<{
             <h2
               key={"all-photos-title"}
               className="text-sm mt-4 font-semibold tracking-wider"
+              id="guest-photos-title"
             >
               Guests photos
             </h2>

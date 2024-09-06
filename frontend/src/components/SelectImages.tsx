@@ -3,13 +3,17 @@ import { ImageItem } from "../types/ImageItem";
 import { Check, NotebookPen } from "lucide-react";
 import { MaxPhotosNotice } from "./MaxPhotosNotice";
 import { useRef, useState } from "react";
+import {
+  getHasSeenMaxPhotosNotice,
+  setHasSeenMaxPhotosNotice,
+} from "../services/UserService";
 
 export function SelectImages({
   pendingImageItems,
   setPendingImageItems,
   uploadImages,
   uploadInProgress,
-  oneUploadDone,
+  successType,
   pendingImageAngles,
   combinedProgress,
   selectImages,
@@ -20,7 +24,7 @@ export function SelectImages({
   setPendingImageItems: any; // Replace 'any' with the actual type of setPendingImageItems
   uploadImages: any; // Replace 'any' with the actual type of uploadImages
   uploadInProgress: boolean;
-  oneUploadDone: boolean;
+  successType: undefined | "photo" | "note";
   pendingImageAngles: any; // Replace 'any' with the actual type of pendingImageAngles
   combinedProgress: any; // Replace 'any' with the actual type of combinedProgress
   selectImages: any; // Replace 'any' with the actual type of selectImages
@@ -32,7 +36,6 @@ export function SelectImages({
   const inputRef = useRef<HTMLInputElement>(null);
 
   let [isMaxPhotosNoticeOpen, setIsMaxPhotosNoticeOpen] = useState(false);
-  let [hasSeenMaxPhotosNotice, setHasSeenMaxPhotosNotice] = useState(false);
 
   const handleFileInputOnChange = (...args: any[]) => {
     setIsMaxPhotosNoticeOpen(false);
@@ -162,25 +165,11 @@ export function SelectImages({
     );
   }
 
-  if (oneUploadDone) {
+  if (successType === "photo") {
     return (
       <>
         <div className="flex align-center justify-center text-primary">
           <Check size={28} />
-          {/* <svg
-            width="33"
-            height="33"
-            viewBox="0 0 33 33"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <g>
-              <path
-                className="fill-primary"
-                d="M12.3752 22.2338L6.64146 16.5L4.68896 18.4388L12.3752 26.125L28.8752 9.62503L26.9365 7.68628L12.3752 22.2338Z"
-              />
-            </g>
-          </svg> */}
         </div>
         <p className="text-center text-lg font-serif mt-2 mb-5 text-primary">
           Awesome!
@@ -195,7 +184,41 @@ export function SelectImages({
               onChange={selectImages}
               className="cursor-pointer absolute inset-0 w-full h-full opacity-0"
             />
-            Upload more
+            Share photos
+          </label>
+
+          <Button
+            className="text-primary w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
+            onClick={onAddNoteClick}
+          >
+            <NotebookPen size={20} />
+            Leave a note
+          </Button>
+        </div>
+      </>
+    );
+  }
+
+  if (successType === "note") {
+    return (
+      <>
+        <div className="flex align-center justify-center text-primary">
+          <Check size={28} />
+        </div>
+        <p className="text-center text-lg font-serif mt-2 mb-5 text-primary">
+          Thanks!
+        </p>
+
+        <div className="py-6 flex gap-4">
+          <label className="bg-primary w-full flex items-center justify-center rounded-full text-primaryText relative overflow-hidden text-center font-semibold">
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={selectImages}
+              className="cursor-pointer absolute inset-0 w-full h-full opacity-0"
+            />
+            Share photos
           </label>
 
           <Button
@@ -214,7 +237,7 @@ export function SelectImages({
     <div className="text-center">
       <label
         onClick={(e) => {
-          if (!hasSeenMaxPhotosNotice) {
+          if (!getHasSeenMaxPhotosNotice()) {
             e.preventDefault();
             e.stopPropagation();
             setIsMaxPhotosNoticeOpen(true);
@@ -248,7 +271,7 @@ export function SelectImages({
         }}
         onSelectImages={() => {
           setHasSeenMaxPhotosNotice(true);
-          setTimeout(() => inputRef.current?.click(), 50);
+          inputRef.current?.click();
         }}
       />
     </div>

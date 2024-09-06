@@ -42,7 +42,9 @@ const pickRelevantImages = (imageItems: ImageItem[]) => {
 };
 
 export const AppView: React.FC = () => {
-  const [oneUploadDone, setOneUploadDone] = useState<boolean>(false);
+  const [successType, setSuccessType] = useState<undefined | "photo" | "note">(
+    undefined
+  );
 
   const [pendingImageItems, setPendingImageItems] = useState<ImageItem[]>([]);
 
@@ -128,6 +130,14 @@ export const AppView: React.FC = () => {
     }
   }, []);
 
+  const handleRefresh = useCallback(() => {
+    document.getElementById("guest-photos-title")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+    refetchData();
+  }, []);
+
   useEffect(() => {
     refetchData();
   }, []);
@@ -177,52 +187,49 @@ export const AppView: React.FC = () => {
     setPendingImageItems(newPendingImageItems);
   };
 
-  const upload = useCallback(
-    async (imageItem: ImageItem, file: File) => {
-      const abortController = new AbortController();
-      abortControllers.current[imageItem.id] = abortController;
-      return BackendService.uploadImageItem(
-        file,
-        abortController.signal,
-        (event) => {
-          uploadProgress.current[imageItem.id] = event.loaded / event.total;
-        }
-      )
-        .then((response) => {
-          const { id, image, thumbnail, uploadedDateTime } = response;
-          setPendingImageItems((currentItems) =>
-            currentItems.filter((item) => item.id !== imageItem.id)
-          );
+  const upload = useCallback(async (imageItem: ImageItem, file: File) => {
+    const abortController = new AbortController();
+    abortControllers.current[imageItem.id] = abortController;
+    return BackendService.uploadImageItem(
+      file,
+      abortController.signal,
+      (event) => {
+        uploadProgress.current[imageItem.id] = event.loaded / event.total;
+      }
+    )
+      .then((response) => {
+        const { id, image, thumbnail, uploadedDateTime } = response;
+        setPendingImageItems((currentItems) =>
+          currentItems.filter((item) => item.id !== imageItem.id)
+        );
 
-          setAllImageItems((currentItems) => [
-            {
-              ...imageItem,
-              image,
-              thumbnail,
-              uploadedDateTime: new Date(uploadedDateTime),
-              remoteId: id,
-              uploadDone: true,
-              uploadProgress: 100,
-              loadingDelete: false,
-            },
-            ...currentItems,
-          ]);
+        setAllImageItems((currentItems) => [
+          {
+            ...imageItem,
+            image,
+            thumbnail,
+            uploadedDateTime: new Date(uploadedDateTime),
+            remoteId: id,
+            uploadDone: true,
+            uploadProgress: 100,
+            loadingDelete: false,
+          },
+          ...currentItems,
+        ]);
 
-          if (!oneUploadDone) setOneUploadDone(true);
-        })
-        .catch((error) => {
-          console.error("Upload error for file", imageItem.name, error);
-          setPendingImageItems((currentItems) =>
-            currentItems.map((item) =>
-              item.id === imageItem.id
-                ? { ...item, error: true, uploadProgress: 0, uploadDone: false }
-                : item
-            )
-          );
-        });
-    },
-    [oneUploadDone]
-  );
+        setSuccessType("photo");
+      })
+      .catch((error) => {
+        console.error("Upload error for file", imageItem.name, error);
+        setPendingImageItems((currentItems) =>
+          currentItems.map((item) =>
+            item.id === imageItem.id
+              ? { ...item, error: true, uploadProgress: 0, uploadDone: false }
+              : item
+          )
+        );
+      });
+  }, []);
 
   const cancelUpload = useCallback(() => {
     for (const [id, controller] of Object.entries(abortControllers.current)) {
@@ -445,7 +452,7 @@ export const AppView: React.FC = () => {
             setPendingImageItems={setPendingImageItems}
             uploadImages={uploadImages}
             uploadInProgress={uploadInProgress}
-            oneUploadDone={oneUploadDone}
+            successType={successType}
             pendingImageAngles={pendingImageAngles}
             combinedProgress={combinedProgress}
             selectImages={selectImages}
@@ -520,6 +527,7 @@ export const AppView: React.FC = () => {
               };
               setUserName(note.userName);
               setAllNotes((currentNotes) => [newNote, ...currentNotes]);
+              setSuccessType("note");
             })
             .catch((error) => {
               console.error("Could not add note", error);
@@ -540,8 +548,8 @@ export const AppView: React.FC = () => {
         }}
       />
       <UpdatesNotifier
-        galleryCount={allImageItems.length}
-        onRefresh={refetchData}
+        galleryCount={allImageItems.length + allNotes.length}
+        onRefresh={handleRefresh}
       />
     </div>
   );

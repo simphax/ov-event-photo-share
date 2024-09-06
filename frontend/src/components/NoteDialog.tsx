@@ -58,7 +58,7 @@ export const NoteDialog = ({
                 className="max-w-lg w-full space-y-4 p-8"
               >
                 <DialogTitle className="text-lg font-bold">
-                  Add a note
+                  Your note
                 </DialogTitle>
                 <Textarea
                   autoFocus
@@ -68,7 +68,7 @@ export const NoteDialog = ({
                 ></Textarea>
 
                 <Field>
-                  <Label className="font-semibold block mb-1">From name</Label>
+                  <Label className="font-semibold block mb-1">Your name</Label>
                   <Input
                     value={name}
                     className="border p-4 font-serif border-primary/50 rounded-xl data-[focus]:border-transparent bg-none w-full bg-transparent"
@@ -83,7 +83,7 @@ export const NoteDialog = ({
                     className="bg-primary/10 rounded-full px-12 h-12"
                     onClick={() => onAddNote(note, name)}
                   >
-                    Add note
+                    Send
                   </Button>
                 </div>
               </DialogPanel>

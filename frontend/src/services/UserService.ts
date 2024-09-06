@@ -14,3 +14,12 @@ export const getUserName = (): string => {
 export const setUserName = (newName: string) => {
   localStorage.setItem("userName", newName);
 };
+
+export const getHasSeenMaxPhotosNotice = (): boolean => {
+  return !!localStorage.getItem("hasSeenMaxPhotosNotice");
+};
+
+export const setHasSeenMaxPhotosNotice = (value: boolean) => {
+  if (!value) localStorage.removeItem("hasSeenMaxPhotosNotice");
+  else localStorage.setItem("hasSeenMaxPhotosNotice", "true");
+};
