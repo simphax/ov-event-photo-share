@@ -434,6 +434,11 @@ export const AppView: React.FC = () => {
     });
   }, [groupedItems]);
 
+  const galleryCount = useMemo(
+    () => sortedNotes.length + sortedImageItems.length,
+    [sortedNotes, sortedImageItems]
+  );
+
   return (
     <div className="mb-10">
       <div className="flex flex-col h-[70vh]">
@@ -547,10 +552,8 @@ export const AppView: React.FC = () => {
           }
         }}
       />
-      <UpdatesNotifier
-        galleryCount={allImageItems.length + allNotes.length}
-        onRefresh={handleRefresh}
-      />
+      {galleryCount}
+      <UpdatesNotifier galleryCount={galleryCount} onRefresh={handleRefresh} />
     </div>
   );
 };

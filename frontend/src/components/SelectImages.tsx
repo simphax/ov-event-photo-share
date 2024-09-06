@@ -184,7 +184,7 @@ export function SelectImages({
               onChange={selectImages}
               className="cursor-pointer absolute inset-0 w-full h-full opacity-0"
             />
-            Share photos
+            Upload more
           </label>
 
           <Button

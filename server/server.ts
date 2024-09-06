@@ -241,34 +241,6 @@ const startServer = async () => {
   );
 
   let galleryCountCache: number | undefined = undefined;
-  router.get(
-    "/gallery/count",
-    async (
-      req: Request,
-      res: Response<GalleryCountResponseModel | ErrorResponseModel>
-    ) => {
-      res.setHeader("Connection", "keep-alive");
-      if (galleryCountCache) return res.json({ count: galleryCountCache });
-
-      try {
-        const imageFiles = await fs.readdir(THUMBNAILS_FOLDER_PATH);
-        const noteFiles = await fs.readdir(NOTES_FOLDER_PATH);
-
-        const images: any[] = imageFiles.filter((fileName) =>
-          fileName.endsWith(".webp")
-        );
-
-        galleryCountCache = images.length + noteFiles.length;
-
-        res.json({ count: galleryCountCache });
-      } catch (err) {
-        console.error(err);
-        return res
-          .status(500)
-          .send({ error: true, message: "Unable to list gallery files." });
-      }
-    }
-  );
 
   app.get("/gallery/count-stream", (req, res) => {
     res.setHeader("Cache-Control", "no-store");
@@ -288,12 +260,13 @@ const startServer = async () => {
       }
 
       const files = await fs.readdir(THUMBNAILS_FOLDER_PATH);
+      const noteFiles = await fs.readdir(NOTES_FOLDER_PATH);
 
       const images: any[] = files.filter((fileName) =>
         fileName.endsWith(".webp")
       );
 
-      galleryCountCache = images.length;
+      galleryCountCache = images.length + noteFiles.length;
 
       sendCountUpdatedEvent(galleryCountCache);
     }, 1000);
