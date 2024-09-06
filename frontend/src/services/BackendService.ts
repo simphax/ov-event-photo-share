@@ -4,6 +4,8 @@ import { ImageItemResponseModel } from "../../../common/types/ImageItemResponseM
 import { NoteResponseModel } from "../../../common/types/NoteResponseModel";
 import { NoteCreateRequestModel } from "../../../common/types/NoteCreateRequestModel";
 import { UserResponseModel } from "../../../common/types/UserResponseModel";
+import { GalleryCountResponseModel } from "@common/types/GalleryCountResponseModel";
+import { clear } from "console";
 
 const uploadImageItem = async (
   file: File,
@@ -71,6 +73,37 @@ const setUserName = (id: string, name: string): Promise<any> => {
   return http.put(`/users/${encodeURIComponent(id)}`, { name });
 };
 
+const runGalleryCountPolling = (onUpdate: (count: number) => void) => {
+  const makeRequest = async () => {
+    try {
+      const response = await http.get<GalleryCountResponseModel>(
+        "/gallery/count",
+        { timeout: 5000 }
+      );
+      const data = response.data;
+      onUpdate(data.count);
+    } catch (error) {
+      console.error("Failed to get gallery count", error);
+    } finally {
+      setTimeout(makeRequest, 2000); // Schedule the next request after 2 seconds
+    }
+  };
+
+  setTimeout(makeRequest, 0); // Start the initial request immediately
+};
+
+const runGalleryCountStream = (onUpdate: (count: number) => void) => {
+  const evtSource = new EventSource(
+    `${process.env.REACT_APP_API_URL}gallery/count-stream`
+  );
+  evtSource.onmessage = (event) => {
+    if (event.data) {
+      const countData: GalleryCountResponseModel = JSON.parse(event.data);
+      onUpdate(countData.count);
+    }
+  };
+};
+
 export const BackendService = {
   uploadImageItem,
   deleteImageItem,
@@ -82,4 +115,7 @@ export const BackendService = {
   setUserName,
 
   getUsers,
+
+  runGalleryCountPolling,
+  runGalleryCountStream,
 };

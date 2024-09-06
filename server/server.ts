@@ -10,6 +10,8 @@ import { v4 as uuidv4 } from "uuid";
 import { NoteResponseModel } from "../common/types/NoteResponseModel";
 import { NoteCreateRequestModel } from "../common/types/NoteCreateRequestModel";
 import { constants } from "fs/promises";
+import { GalleryCountResponseModel } from "../common/types/GalleryCountResponseModel";
+import { ErrorResponseModel } from "../common/types/ErrorResponseModel";
 
 const UPLOAD_FOLDER_PATH = process.env.UPLOAD_FOLDER_PATH || "uploads/";
 const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
@@ -27,50 +29,6 @@ const corsOptions: cors.CorsOptions = {
   origin: "*",
   optionsSuccessStatus: 200,
 };
-
-/**
- * Deletes a file with retries using the `retry` package.
- * @param {string} filePath - The full path to the file to be deleted.
- * @param {number} retryInterval - Time to wait before retrying, in milliseconds.
- * @param {number} maxRetries - Maximum number of retry attempts.
- 
-const deleteFileWithRetry = async (
-  filePath: string,
-  retryInterval: number = 100,
-  maxRetries: number = 5
-) => {
-  const operation = retry.operation({
-    retries: maxRetries,
-    factor: 1,
-    minTimeout: retryInterval,
-    maxTimeout: retryInterval,
-  });
-
-  operation.attempt((currentAttempt: number) => {
-    console.log(`Attempt ${currentAttempt}: Trying to delete the file...`);
-    fs.unlink(filePath, (err) => {
-      if (err) {
-        if (err.code === "EBUSY" || err.code === "EPERM") {
-          console.log(
-            `File is busy. Retrying after ${retryInterval} milliseconds...`
-          );
-          if (operation.retry(err)) {
-            return;
-          }
-        } else {
-          console.error(`Error: ${err.message}`);
-        }
-      } else {
-        console.log("File deleted successfully");
-      }
-
-      if (operation.attempts() === maxRetries) {
-        console.log("Reached max retries.");
-      }
-    });
-  });
-};
-*/
 
 const startServer = async () => {
   sharp.cache(false);
@@ -252,6 +210,8 @@ const startServer = async () => {
           )
         );
 
+        galleryCountCache = undefined;
+
         return res.status(201).json({
           id: req.file.filename,
           thumbnail: {
@@ -279,6 +239,70 @@ const startServer = async () => {
       }
     }
   );
+
+  let galleryCountCache: number | undefined = undefined;
+  router.get(
+    "/gallery/count",
+    async (
+      req: Request,
+      res: Response<GalleryCountResponseModel | ErrorResponseModel>
+    ) => {
+      res.setHeader("Connection", "keep-alive");
+      if (galleryCountCache) return res.json({ count: galleryCountCache });
+
+      try {
+        const files = await fs.readdir(THUMBNAILS_FOLDER_PATH);
+
+        const images: any[] = files.filter((fileName) =>
+          fileName.endsWith(".webp")
+        );
+
+        galleryCountCache = images.length;
+
+        res.json({ count: galleryCountCache });
+      } catch (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .send({ error: true, message: "Unable to list gallery files." });
+      }
+    }
+  );
+
+  app.get("/gallery/count-stream", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+
+    const sendCountUpdatedEvent = (count: number) => {
+      res.write(`event: countUpdated\n`);
+      res.write(`data: ${JSON.stringify({ count })}\n\n`);
+    };
+
+    let interval = setInterval(async () => {
+      if (galleryCountCache) {
+        sendCountUpdatedEvent(galleryCountCache);
+        return;
+      }
+
+      const files = await fs.readdir(THUMBNAILS_FOLDER_PATH);
+
+      const images: any[] = files.filter((fileName) =>
+        fileName.endsWith(".webp")
+      );
+
+      galleryCountCache = images.length;
+
+      sendCountUpdatedEvent(galleryCountCache);
+    }, 1000);
+
+    res.on("close", () => {
+      clearInterval(interval);
+
+      res.end();
+    });
+  });
 
   router.get("/gallery", async (req: Request, res: Response) => {
     try {

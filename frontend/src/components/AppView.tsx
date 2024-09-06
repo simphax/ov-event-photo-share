@@ -21,6 +21,7 @@ import { isNoteSlide, NoteSlide } from "./NoteSlide";
 import { MaxPhotosNotice } from "./MaxPhotosNotice";
 
 import { Turtle } from "./Turtle";
+import { UpdatesNotifier } from "./UpdatesNotifier";
 
 const pickRelevantImages = (imageItems: ImageItem[]) => {
   if (!imageItems) return [];
@@ -45,8 +46,7 @@ export const AppView: React.FC = () => {
 
   const [pendingImageItems, setPendingImageItems] = useState<ImageItem[]>([]);
 
-  const [ownedImageItems, setOwnedImageItems] = useState<ImageItem[]>([]);
-  const [othersImageItems, setOthersImageItems] = useState<ImageItem[]>([]);
+  const [allImageItems, setAllImageItems] = useState<ImageItem[]>([]);
   const [pendingImageAngles, setPendingImageAngles] = useState<number[]>([
     0, 0, 0,
   ]);
@@ -56,102 +56,80 @@ export const AppView: React.FC = () => {
   const uploadProgress = useRef<{ [imageItemId: string]: number }>({});
   const abortControllers = useRef<Record<string, AbortController>>({});
 
-  const [ownedNotes, setOwnedNotes] = useState<Note[]>([]);
-  const [othersNotes, setOthersNotes] = useState<Note[]>([]);
+  const [allNotes, setAllNotes] = useState<Note[]>([]);
 
   const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
 
   let [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   let [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
 
-  const sortedOwnedImageItems = useMemo(() => {
-    return [...ownedImageItems].sort(
+  const sortedImageItems = useMemo(() => {
+    return [...allImageItems].sort(
       (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
     );
-  }, [ownedImageItems]);
+  }, [allImageItems]);
 
-  const sortedOthersImageItems = useMemo(() => {
-    return [...othersImageItems].sort(
-      (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
-    );
-  }, [othersImageItems]);
-
-  const sortedOwnedNotes = useMemo(() => {
-    return [...ownedNotes].sort(
+  const sortedNotes = useMemo(() => {
+    return [...allNotes].sort(
       (a, b) => b.createdDateTime.getTime() - a.createdDateTime.getTime()
     );
-  }, [ownedNotes]);
-
-  const sortedOthersNotes = useMemo(() => {
-    return [...othersNotes].sort(
-      (a, b) => b.createdDateTime.getTime() - a.createdDateTime.getTime()
-    );
-  }, [othersNotes]);
+  }, [allNotes]);
 
   const userName = getUserName();
 
+  const refetchData = useCallback(async () => {
+    try {
+      const [notesResponse, imageItemsResponse, usersResponse] =
+        await Promise.all([
+          BackendService.getNotes(),
+          BackendService.getImageItems(),
+          BackendService.getUsers(),
+        ]);
+
+      const imageItems: ImageItem[] = imageItemsResponse.map(
+        ({ id, thumbnail, image, name, user, uploadedDateTime }) => ({
+          id,
+          remoteId: id,
+          thumbnail,
+          image,
+          userId: user,
+          uploadedDateTime: new Date(uploadedDateTime || 0),
+          loadingDelete: false,
+          name,
+          uploadProgress: 1,
+          uploadDone: true,
+          error: false,
+        })
+      );
+
+      setAllImageItems(imageItems);
+
+      const notes: Note[] = notesResponse.map(
+        ({ id, content, userId, userName, createdDateTime }) => ({
+          id,
+          content,
+          userId,
+          userName,
+          createdDateTime: new Date(createdDateTime || 0),
+          loadingDelete: false,
+        })
+      );
+
+      setAllNotes(notes);
+
+      setUserNames(
+        usersResponse.reduce((acc, user) => {
+          acc[user.id] = user.name;
+          return acc;
+        }, {} as { [id: string]: string })
+      );
+    } catch (error) {
+      console.error("Failed to fetch files:", error);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [notesResponse, imageItemsResponse, usersResponse] =
-          await Promise.all([
-            BackendService.getNotes(),
-            BackendService.getImageItems(),
-            BackendService.getUsers(),
-          ]);
-
-        const imageItems: ImageItem[] = imageItemsResponse.map(
-          ({ id, thumbnail, image, name, user, uploadedDateTime }) => ({
-            id,
-            remoteId: id,
-            thumbnail,
-            image,
-            userId: user,
-            uploadedDateTime: new Date(uploadedDateTime || 0),
-            loadingDelete: false,
-            name,
-            uploadProgress: 1,
-            uploadDone: true,
-            error: false,
-          })
-        );
-
-        const myImages = imageItems.filter(
-          (image) => image.userId === getUserId()
-        );
-        const theirImages = imageItems.filter(
-          (image) => image.userId !== getUserId()
-        );
-        setOwnedImageItems(myImages);
-        setOthersImageItems(theirImages);
-
-        const notes: Note[] = notesResponse.map(
-          ({ id, content, userId, userName, createdDateTime }) => ({
-            id,
-            content,
-            userId,
-            userName,
-            createdDateTime: new Date(createdDateTime || 0),
-            loadingDelete: false,
-          })
-        );
-        const myNotes = notes.filter((note) => note.userId === getUserId());
-        const theirNotes = notes.filter((note) => note.userId !== getUserId());
-        setOwnedNotes(myNotes);
-        setOthersNotes(theirNotes);
-
-        setUserNames(
-          usersResponse.reduce((acc, user) => {
-            acc[user.id] = user.name;
-            return acc;
-          }, {} as { [id: string]: string })
-        );
-      } catch (error) {
-        console.error("Failed to fetch files:", error);
-      }
-    };
-
-    fetchData();
+    refetchData();
   }, []);
 
   const updateProgress = () => {
@@ -216,7 +194,7 @@ export const AppView: React.FC = () => {
             currentItems.filter((item) => item.id !== imageItem.id)
           );
 
-          setOwnedImageItems((currentItems) => [
+          setAllImageItems((currentItems) => [
             {
               ...imageItem,
               image,
@@ -273,7 +251,7 @@ export const AppView: React.FC = () => {
 
   const deleteImage = useCallback(async (imageItem: ImageItem) => {
     try {
-      setOwnedImageItems((currentItems) =>
+      setAllImageItems((currentItems) =>
         currentItems.map((item) =>
           item.id === imageItem.id ? { ...item, loadingDelete: true } : item
         )
@@ -284,9 +262,9 @@ export const AppView: React.FC = () => {
       const filterItems = (array: ImageItem[]) =>
         array.filter((item) => item.id !== imageItem.id);
 
-      setOwnedImageItems(filterItems);
+      setAllImageItems(filterItems);
     } catch (error) {
-      setOwnedImageItems((currentItems) =>
+      setAllImageItems((currentItems) =>
         currentItems.map((item) =>
           item.id === imageItem.id ? { ...item, loadingDelete: false } : item
         )
@@ -297,7 +275,7 @@ export const AppView: React.FC = () => {
 
   const deleteNote = useCallback(async (note: Note) => {
     try {
-      setOwnedNotes((currentNotes) =>
+      setAllNotes((currentNotes) =>
         currentNotes.map((item) =>
           item.id === note.id ? { ...item, loadingDelete: true } : item
         )
@@ -307,9 +285,9 @@ export const AppView: React.FC = () => {
       const filterNotes = (array: Note[]) =>
         array.filter((item) => item.id !== note.id);
 
-      setOwnedNotes(filterNotes);
+      setAllNotes(filterNotes);
     } catch (error) {
-      setOwnedNotes((currentNotes) =>
+      setAllNotes((currentNotes) =>
         currentNotes.map((item) =>
           item.id === note.id ? { ...item, loadingDelete: false } : item
         )
@@ -367,7 +345,7 @@ export const AppView: React.FC = () => {
   };
 
   const groupedItems: UserItem[] = useMemo(() => {
-    const groupedNotes: { [key: string]: Note[] } = sortedOthersNotes.reduce(
+    const groupedNotes: { [key: string]: Note[] } = sortedNotes.reduce(
       (acc, note) => {
         if (!acc[note.userId]) {
           acc[note.userId] = [];
@@ -379,7 +357,7 @@ export const AppView: React.FC = () => {
     );
 
     const groupedImageItems: { [key: string]: ImageItem[] } =
-      sortedOthersImageItems.reduce((acc, imageItem) => {
+      sortedImageItems.reduce((acc, imageItem) => {
         if (!acc[imageItem.userId]) {
           acc[imageItem.userId] = [];
         }
@@ -421,36 +399,8 @@ export const AppView: React.FC = () => {
       return userItem;
     });
 
-    const userId = getUserId();
-    const displayedImageItems =
-      (usersShowAllImages.has(userId)
-        ? sortedOwnedImageItems
-        : pickRelevantImages(sortedOwnedImageItems)) || [];
-
-    const userItem: UserItem = {
-      userId,
-      userName: getUserName(),
-      notes: sortedOwnedNotes || [],
-      imageItems: displayedImageItems,
-      isShowingAllItems:
-        (sortedOwnedImageItems || []).length === displayedImageItems.length,
-      hiddenItemsCount:
-        (sortedOwnedImageItems || []).length - displayedImageItems.length,
-      hiddenItemsPreview:
-        sortedOwnedImageItems[sortedOwnedImageItems.length - 2],
-    };
-
-    result.unshift(userItem);
-
     return result;
-  }, [
-    sortedOwnedNotes,
-    sortedOwnedImageItems,
-    sortedOthersNotes,
-    sortedOthersImageItems,
-    userNames,
-    usersShowAllImages,
-  ]);
+  }, [sortedNotes, sortedImageItems, userNames, usersShowAllImages]);
 
   const lightboxImages: (SlideImageExt | SlideNote)[] = useMemo(() => {
     const mapImageItemToSlide = (imageItem: ImageItem): SlideImageExt => ({
@@ -569,7 +519,7 @@ export const AppView: React.FC = () => {
                 loadingDelete: false,
               };
               setUserName(note.userName);
-              setOwnedNotes((currentNotes) => [newNote, ...currentNotes]);
+              setAllNotes((currentNotes) => [newNote, ...currentNotes]);
             })
             .catch((error) => {
               console.error("Could not add note", error);
@@ -588,6 +538,10 @@ export const AppView: React.FC = () => {
             console.error("Could not set name", error);
           }
         }}
+      />
+      <UpdatesNotifier
+        galleryCount={allImageItems.length}
+        onRefresh={refetchData}
       />
     </div>
   );

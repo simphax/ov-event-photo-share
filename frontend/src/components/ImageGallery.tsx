@@ -154,14 +154,14 @@ const ImageGallery: React.FC<{
             >
               From the Bride and Groom
             </h2>
-                <UserItemsGrid
-                  hideUploadedBy
-                  userItem={brideGroomItems}
-                  onImageClick={onImageClick}
-                  onNoteClick={onNoteClick}
-                  onShowAll={onShowAll}
-                  onShowLess={onShowLess}
-                />
+            <UserItemsGrid
+              hideUploadedBy
+              userItem={brideGroomItems}
+              onImageClick={onImageClick}
+              onNoteClick={onNoteClick}
+              onShowAll={onShowAll}
+              onShowLess={onShowLess}
+            />
           </div>
         )}
 
@@ -176,7 +176,7 @@ const ImageGallery: React.FC<{
             {othersItems.map((userItem, index) => (
               <div
                 key={userItem.userId}
-                className={`relative ${index !== 0 ? "mt-8" : ""}`}
+                className={`relative ${index !== 0 ? "mt-8" : "mt-4"}`}
               >
                 <UserItemsGrid
                   userItem={userItem}

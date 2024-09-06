@@ -55,7 +55,7 @@ export const NoteDialog = ({
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="max-w-lg w-full space-y-4 bg-white p-8"
+                className="max-w-lg w-full space-y-4 p-8"
               >
                 <DialogTitle className="text-lg font-bold">
                   Add a note
