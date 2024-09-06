@@ -34,7 +34,7 @@ export const NameDialog = ({
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/80 backdrop-blur-md"
             />
-            <div className="fixed inset-0 flex w-screen flex-col items-center justify-center p-4">
+            <div className="fixed inset-0 flex w-screen flex-col items-center justify-center p-4  text-textOnLightbox">
               <div className="flex items-center justify-center gap-2 mb-10 -mt-10">
                 <LoadingSpinner /> Uploading
               </div>

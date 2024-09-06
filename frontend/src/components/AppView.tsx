@@ -532,7 +532,7 @@ export const AppView: React.FC = () => {
           The Wedding of Simon & Clara
         </div> */}
         <div
-          className="grow flex justify-center flex-col"
+          className="grow flex justify-center flex-col px-4"
           style={{ minHeight: "200px" }}
         >
           <SelectImages

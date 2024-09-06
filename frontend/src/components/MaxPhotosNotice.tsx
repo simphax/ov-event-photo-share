@@ -35,7 +35,7 @@ export const MaxPhotosNotice = ({
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/80 backdrop-blur-md"
             />
-            <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
+            <div className="fixed inset-0 flex w-screen items-center justify-center p-4 text-textOnLightbox">
               <DialogPanel
                 as={motion.div}
                 initial={{ opacity: 0, scale: 0.95 }}

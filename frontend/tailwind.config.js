@@ -4,8 +4,9 @@ module.exports = {
   theme: {
     colors: {
       primary: "#ffffff",
-      primaryText: "#332929",
-      background: "#ffffff",
+      primaryText: "#222222",
+      textOnLightbox: "#ffffff",
+      background: "#fff",
       notification: "#ffffff", //"#ADFFE5", // "#FFF200", // "#F051FF",
       white: "#FFFFFF",
       black: "#000000",

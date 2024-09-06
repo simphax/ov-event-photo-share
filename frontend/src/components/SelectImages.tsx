@@ -1,6 +1,6 @@
 import { Button } from "@headlessui/react";
 import { ImageItem } from "../types/ImageItem";
-import { Check, NotebookPen } from "lucide-react";
+import { Check, NotebookPen, PlusIcon } from "lucide-react";
 import { MaxPhotosNotice } from "./MaxPhotosNotice";
 import { useRef, useState } from "react";
 import {
@@ -129,7 +129,7 @@ export function SelectImages({
 
         <div className="progress-progress">
           <div className="progress-progress__text text-sm tracking-wider font-semibold mb-2">
-            Could not upload all pictures
+            Could not upload all
           </div>
           <button
             className="progress-progress__button"
@@ -168,15 +168,15 @@ export function SelectImages({
   if (successType === "photo") {
     return (
       <>
-        <div className="flex align-center justify-center text-primary">
+        <div className="flex align-center justify-center text-primaryText">
           <Check size={28} />
         </div>
-        <p className="text-center text-lg font-serif mt-2 mb-5 text-primary">
+        <p className="text-center text-lg font-serif mt-2 mb-5 text-primaryText">
           Awesome!
         </p>
 
         <div className="py-6 flex gap-4">
-          <label className="bg-primary w-full flex items-center justify-center rounded-full text-primaryText relative overflow-hidden text-center font-semibold">
+          <label className="bg-primary shadow-md w-full flex items-center justify-center rounded-full text-primaryText/90 relative overflow-hidden text-center font-semibold">
             <input
               type="file"
               multiple
@@ -188,7 +188,7 @@ export function SelectImages({
           </label>
 
           <Button
-            className="text-primaryText w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
+            className="text-primaryText/90 shadow-md w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/35 rounded-full"
             onClick={onAddNoteClick}
           >
             <NotebookPen size={20} />
@@ -202,15 +202,15 @@ export function SelectImages({
   if (successType === "note") {
     return (
       <>
-        <div className="flex align-center justify-center text-primary">
+        <div className="flex align-center justify-center text-primaryText">
           <Check size={28} />
         </div>
-        <p className="text-center text-lg font-serif mt-2 mb-5 text-primary">
+        <p className="text-center text-lg font-serif mt-2 mb-5 text-primaryText">
           Thanks!
         </p>
 
         <div className="py-6 flex gap-4">
-          <label className="bg-primary w-full flex items-center justify-center rounded-full text-primaryText relative overflow-hidden text-center font-semibold">
+          <label className="bg-primary shadow-md w-full flex items-center justify-center rounded-full text-primaryText/90 relative overflow-hidden text-center font-semibold">
             <input
               type="file"
               multiple
@@ -222,7 +222,7 @@ export function SelectImages({
           </label>
 
           <Button
-            className="text-primaryText w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
+            className="text-primaryText/90 shadow-md w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
             onClick={onAddNoteClick}
           >
             <NotebookPen size={20} />
@@ -234,7 +234,7 @@ export function SelectImages({
   }
 
   return (
-    <div className="text-center">
+    <div className="text-center flex flex-col justify-center items-center">
       <label
         onClick={(e) => {
           if (!getHasSeenMaxPhotosNotice()) {
@@ -243,7 +243,7 @@ export function SelectImages({
             setIsMaxPhotosNoticeOpen(true);
           }
         }}
-        className="bg-primary h-14 items-center justify-center rounded-full text-primaryText relative overflow-hidden flex text-center font-semibold"
+        className="bg-primary h-14 items-center shadow-md justify-center w-52 rounded-full text-primaryText/90 relative overflow-hidden flex text-center font-semibold gap-3"
       >
         <input
           type="file"
@@ -253,15 +253,16 @@ export function SelectImages({
           className="cursor-pointer absolute inset-0 w-full h-full opacity-0"
           ref={inputRef}
         />
+        <PlusIcon size={22} />
         Share photos
       </label>
 
       <Button
-        className="text-primaryText shadow h-14 font-semibold px-10 mx-auto flex gap-3 items-center justify-center bg-primary/20 rounded-full mt-6"
+        className="text-primaryText/90 shadow-md h-14  w-52 font-semibold px-10 mx-auto flex gap-3 items-center justify-center bg-primary/35 rounded-full mt-6"
         onClick={onAddNoteClick}
       >
         <NotebookPen size={22} />
-        Leave a note
+        Add a note
       </Button>
 
       <MaxPhotosNotice

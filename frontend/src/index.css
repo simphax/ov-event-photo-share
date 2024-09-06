@@ -11,6 +11,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #d4dcdc;
   color: #222;
+  background-image: url("./background.png");
+  background-attachment: fixed; /* The first is for the gradient, the second is for the image */
+  background-position: top center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  height: 100vh;
+}
+.gradient {
+  min-height: 100vh;
+  background-image: linear-gradient(
+    to bottom,
+    rgba(36, 36, 37, 0) 0vh,
+    rgba(36, 36, 37, 0) 50vh,
+    #ffffff 100vh
+  );
 }
 
 code {

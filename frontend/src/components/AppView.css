@@ -21,6 +21,7 @@
     #2f2929 50%,
     #282222 100%
   );
+  box-shadow: 0 2px 7px 0 rgba(0, 0, 0, 0.3);
 }
 
 .image-gallery::after {
@@ -51,7 +52,7 @@
 
 .image-gallery > li.image-gallery-note {
   animation: appear 0.4s 0.2s backwards;
-  background-color: rgb(221, 210, 192);
+  background-color: rgb(248, 246, 243);
   background-image: none;
   color: #222;
   font-family: "Times New Roman", Times, serif;
@@ -76,8 +77,8 @@
   /* Gradient */
   background-image: linear-gradient(
     to right,
-    rgba(221, 210, 192, 0),
-    rgba(221, 210, 192, 1) 50%
+    rgba(248, 246, 243, 0),
+    rgba(248, 246, 243, 1) 50%
   );
 }
 

@@ -34,7 +34,7 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
         {!hideUploadedBy && (
           <h2
             key={"uploaded-by-title"}
-            className={`text-xs mb-3 tracking-wider text-primaryText/60 text-left`}
+            className={`text-xs mb-3 tracking-wider text-primaryText/80 text-left`}
           >
             Uploaded by: {userItem.userName}{" "}
             {userItem.userId === getUserId() && (

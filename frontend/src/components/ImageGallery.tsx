@@ -38,8 +38,9 @@ const ImageGallery: React.FC<{
     );
 
     return (
-      <AnimatePresence>
-        {/* {(myItems?.imageItems.length || myItems?.notes.length) && (
+      <div className="px-4 pt-4">
+        <AnimatePresence>
+          {/* {(myItems?.imageItems.length || myItems?.notes.length) && (
           <div key="my-photos-section" className="mb-12">
             <div className="flex items-center justify-between">
               <h2
@@ -145,52 +146,53 @@ const ImageGallery: React.FC<{
           </div>
         )} */}
 
-        {othersItems.length > 0 && (
-          <div key="all-photos-section">
-            <h2
-              key={"all-photos-title"}
-              className="text-sm mt-4 font-semibold tracking-wider"
-              id="guest-photos-title"
-            >
-              Guest photos
-            </h2>
-            {othersItems.map((userItem, index) => (
-              <div
-                key={userItem.userId}
-                className={`relative ${index !== 0 ? "mt-8" : "mt-4"}`}
+          {othersItems.length > 0 && (
+            <div key="all-photos-section">
+              <h2
+                key={"all-photos-title"}
+                className="text-sm mt-4 font-semibold tracking-wider"
+                id="guest-photos-title"
               >
-                <UserItemsGrid
-                  userItem={userItem}
-                  onImageClick={onImageClick}
-                  onNoteClick={onNoteClick}
-                  onShowAll={onShowAll}
-                  onShowLess={onShowLess}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+                Guest photos
+              </h2>
+              {othersItems.map((userItem, index) => (
+                <div
+                  key={userItem.userId}
+                  className={`relative ${index !== 0 ? "mt-8" : "mt-4"}`}
+                >
+                  <UserItemsGrid
+                    userItem={userItem}
+                    onImageClick={onImageClick}
+                    onNoteClick={onNoteClick}
+                    onShowAll={onShowAll}
+                    onShowLess={onShowLess}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
-        {(brideGroomItems?.imageItems.length ||
-          brideGroomItems?.notes.length) && (
-          <div key="bride-groom-section" className="mt-12">
-            <h2
-              key={"bride-groom-title"}
-              className="text-sm my-4 font-semibold tracking-wider"
-            >
-              From the Bride and Groom
-            </h2>
-            <UserItemsGrid
-              hideUploadedBy
-              userItem={brideGroomItems}
-              onImageClick={onImageClick}
-              onNoteClick={onNoteClick}
-              onShowAll={onShowAll}
-              onShowLess={onShowLess}
-            />
-          </div>
-        )}
-      </AnimatePresence>
+          {(brideGroomItems?.imageItems.length ||
+            brideGroomItems?.notes.length) && (
+            <div key="bride-groom-section" className="mt-12">
+              <h2
+                key={"bride-groom-title"}
+                className="text-sm my-4 font-semibold tracking-wider"
+              >
+                From the Bride and Groom
+              </h2>
+              <UserItemsGrid
+                hideUploadedBy
+                userItem={brideGroomItems}
+                onImageClick={onImageClick}
+                onNoteClick={onNoteClick}
+                onShowAll={onShowAll}
+                onShowLess={onShowLess}
+              />
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
     );
   }
 );

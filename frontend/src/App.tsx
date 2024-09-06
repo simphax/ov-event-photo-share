@@ -5,9 +5,10 @@ import { AppView } from "./components/AppView";
 
 const App: React.FC = () => {
   return (
-    <div className="container">
-      <AppView />
-      {/* <div className="text-xs text-primary text-center py-8">
+    <div className="gradient">
+      <div className="container">
+        <AppView />
+        {/* <div className="text-xs text-primary text-center py-8">
         App made by Simon @{" "}
         <a
           href="https://onovo.se"
@@ -18,6 +19,7 @@ const App: React.FC = () => {
           Onovo Consulting
         </a>
       </div> */}
+      </div>
     </div>
   );
 };
