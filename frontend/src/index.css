@@ -45,3 +45,8 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
+
+.yarl__slide_image {
+  border-radius: 1.5rem;
+}
