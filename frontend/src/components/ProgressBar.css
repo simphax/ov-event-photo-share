@@ -30,6 +30,7 @@
 
 .progress-progress__text {
   position: absolute;
+  color: #222;
   line-height: 40px;
   top: -40px;
 }
