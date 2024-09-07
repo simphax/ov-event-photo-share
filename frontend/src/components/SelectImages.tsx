@@ -1,6 +1,6 @@
 import { Button } from "@headlessui/react";
 import { ImageItem } from "../types/ImageItem";
-import { Check, NotebookPen, PlusIcon } from "lucide-react";
+import { Check, NotebookPen, PlusIcon, StickerIcon } from "lucide-react";
 import { memo, useRef, useState } from "react";
 import { getUserName } from "../services/UserService";
 import { NameDialog } from "./NameDialog";
@@ -188,10 +188,10 @@ export const SelectImages = memo(
             </label>
 
             <Button
-              className="text-primaryText/90 shadow-md w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/35 rounded-full"
+              className="text-primaryText/90 shadow-md w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/40 rounded-full"
               onClick={onAddNoteClick}
             >
-              <NotebookPen size={20} />
+              <StickerIcon size={20} />
               Add a note
             </Button>
           </div>
@@ -222,10 +222,10 @@ export const SelectImages = memo(
             </label>
 
             <Button
-              className="text-primaryText/90 shadow-md w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/10 rounded-full"
+              className="text-primaryText/90 shadow-md w-full py-3 font-semibold px-6 flex gap-2 items-center justify-center bg-primary/40 rounded-full"
               onClick={onAddNoteClick}
             >
-              <NotebookPen size={20} />
+              <StickerIcon size={20} />
               Add a note
             </Button>
           </div>
@@ -258,10 +258,10 @@ export const SelectImages = memo(
         </label>
 
         <Button
-          className="text-primaryText/90 shadow-md h-14  w-52 font-semibold px-10 mx-auto flex gap-3 items-center justify-center bg-primary/35 rounded-full mt-6"
+          className="text-primaryText/90 shadow-md h-14  w-52 font-semibold px-10 mx-auto flex gap-3 items-center justify-center bg-primary/40 rounded-full mt-6"
           onClick={onAddNoteClick}
         >
-          <NotebookPen size={22} />
+          <StickerIcon size={22} />
           Add a note
         </Button>
 
