@@ -9,15 +9,25 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #d4dcdc;
+  background-color: #aab5ba;
   color: #fff;
-  background-image: url("./background.png");
-  background-attachment: fixed; /* The first is for the gradient, the second is for the image */
-  background-position: top center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  height: 100vh;
 }
+
+.background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 120lvw;
+  height: 110lvh;
+  background-image: url("./background.png");
+  background-attachment: scroll;
+  background-position: top center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  z-index: -1;
+  transform: translateZ(0);
+}
+
 .gradient {
   min-height: 100vh;
   background-image: linear-gradient(
