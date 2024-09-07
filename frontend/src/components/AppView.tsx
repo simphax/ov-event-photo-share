@@ -108,7 +108,6 @@ export const AppView: React.FC = () => {
   const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
 
   let [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
-  let [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
 
   const sortedItems: (Note | ImageItem)[] = useMemo(() => {
     return [...allNotes, ...allImageItems].sort((a, b) => {
@@ -187,12 +186,12 @@ export const AppView: React.FC = () => {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    document.getElementById("guest-photos-title")?.scrollIntoView({
+    window.scrollTo({
+      top: window.innerHeight * 0.7,
       behavior: "smooth",
-      block: "start",
     });
     refetchData();
-  }, []);
+  }, [refetchData]);
 
   useEffect(() => {
     refetchData();
@@ -301,8 +300,6 @@ export const AppView: React.FC = () => {
       setItemsCountToUpload(pendingImageItems.length);
       setUploadInProgress(true);
 
-      if (!userName) setIsNameDialogOpen(true);
-
       await Promise.all(
         pendingImageItems.map((imageItem) => upload(imageItem, imageItem.file!))
       );
@@ -310,7 +307,7 @@ export const AppView: React.FC = () => {
       console.error(err);
     }
     setUploadInProgress(false);
-  }, [pendingImageItems, upload, userName]);
+  }, [pendingImageItems, upload]);
 
   const deleteImage = useCallback(
     async (imageItemId: string) => {
@@ -537,17 +534,15 @@ export const AppView: React.FC = () => {
 
   return (
     <div className="pb-10">
-      <div className="flex flex-col h-[75vh]">
-        <div className="flex justify-center mt-28 mx-auto">
+      <div className="flex flex-col h-[75vh] justify-between">
+        <div className="h-0"></div>
+        <div className="flex justify-center mx-auto">
           <Sigill />
         </div>
         {/* <div className="font-serif text-center text-primary">
           The Wedding of Simon & Clara
         </div> */}
-        <div
-          className="grow flex justify-center flex-col px-4 -mt-8"
-          style={{ minHeight: "200px" }}
-        >
+        <div className="flex justify-center flex-col px-4">
           <SelectImages
             pendingImageItems={pendingImageItems}
             setPendingImageItems={setPendingImageItems}
@@ -559,13 +554,25 @@ export const AppView: React.FC = () => {
             selectImages={selectImages}
             cancelUpload={cancelUpload}
             onAddNoteClick={() => setIsNoteDialogOpen(true)}
+            onSetName={async (name: string) => {
+              try {
+                await BackendService.setUserName(getUserId(), name);
+                setUserName(name);
+                setUserNames((currentNames) => ({
+                  ...currentNames,
+                  [getUserId()]: getUserName(),
+                }));
+              } catch (error) {
+                console.error("Could not set name", error);
+              }
+            }}
           />
           {uploadInProgress && <Turtle />}
         </div>
+        <h1 className="px-4 py-3 text-primaryText font-semibold text text-md">
+          Guest photos
+        </h1>
       </div>
-      <h1 className="-mt-9 pl-4 text-primaryText font-semibold text text-sm mb-2">
-        Guest photos
-      </h1>
       <ImageGallery
         groupedItems={groupedItems}
         onDeleteImage={(imageItem) => deleteImage(imageItem.id)}
@@ -648,22 +655,6 @@ export const AppView: React.FC = () => {
               console.error("Could not add note", error);
             });
           setIsNoteDialogOpen(false);
-        }}
-      />
-      <NameDialog
-        isOpen={isNameDialogOpen}
-        onSetName={async (name) => {
-          setIsNameDialogOpen(false);
-          try {
-            await BackendService.setUserName(getUserId(), name);
-            setUserName(name);
-            setUserNames((currentNames) => ({
-              ...currentNames,
-              [getUserId()]: getUserName(),
-            }));
-          } catch (error) {
-            console.error("Could not set name", error);
-          }
         }}
       />
       <UpdatesNotifier galleryCount={galleryCount} onRefresh={handleRefresh} />

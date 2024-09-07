@@ -34,7 +34,7 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
         {!hideUploadedBy && (
           <h2
             key={"uploaded-by-title"}
-            className={`text-xs mb-3 tracking-wider text-textOnLightbox/80 text-left`}
+            className={`text-sm mb-3 tracking-wider text-textOnLightbox/90 text-center`}
           >
             Uploaded by: {userItem.userName}{" "}
             {userItem.userId === getUserId() && (
@@ -57,7 +57,7 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
                 <div className="underline whitespace-nowrap mr-2">
                   Read more
                 </div>
-                <div className="truncate">{note.userName}</div>
+                {/*<div className="truncate">{note.userName}</div>*/}
               </div>
               {renderNoteControls?.(note)}
             </motion.li>

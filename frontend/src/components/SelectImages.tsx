@@ -5,8 +5,10 @@ import { MaxPhotosNotice } from "./MaxPhotosNotice";
 import { useRef, useState } from "react";
 import {
   getHasSeenMaxPhotosNotice,
+  getUserName,
   setHasSeenMaxPhotosNotice,
 } from "../services/UserService";
+import { NameDialog } from "./NameDialog";
 
 export function SelectImages({
   pendingImageItems,
@@ -19,6 +21,7 @@ export function SelectImages({
   selectImages,
   cancelUpload,
   onAddNoteClick,
+  onSetName,
 }: {
   pendingImageItems: ImageItem[];
   setPendingImageItems: any; // Replace 'any' with the actual type of setPendingImageItems
@@ -30,15 +33,16 @@ export function SelectImages({
   selectImages: any; // Replace 'any' with the actual type of selectImages
   cancelUpload: any; // Replace 'any' with the actual type of cancelUpload
   onAddNoteClick: () => void;
+  onSetName: (name: string) => Promise<void>;
 }): JSX.Element {
   const pendingtemsWithError = pendingImageItems.filter((item) => item.error);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  let [isMaxPhotosNoticeOpen, setIsMaxPhotosNoticeOpen] = useState(false);
+  let [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
 
   const handleFileInputOnChange = (...args: any[]) => {
-    setIsMaxPhotosNoticeOpen(false);
+    setIsNameDialogOpen(false);
     selectImages(...args);
   };
 
@@ -237,10 +241,10 @@ export function SelectImages({
     <div className="text-center flex flex-col justify-center items-center">
       <label
         onClick={(e) => {
-          if (!getHasSeenMaxPhotosNotice()) {
+          if (!getUserName()) {
             e.preventDefault();
             e.stopPropagation();
-            setIsMaxPhotosNoticeOpen(true);
+            setIsNameDialogOpen(true);
           }
         }}
         className="bg-primary h-14 items-center shadow-md justify-center w-52 rounded-full text-primaryText/90 relative overflow-hidden flex text-center font-semibold gap-3"
@@ -265,13 +269,13 @@ export function SelectImages({
         Add a note
       </Button>
 
-      <MaxPhotosNotice
-        isOpen={isMaxPhotosNoticeOpen}
+      <NameDialog
+        isOpen={isNameDialogOpen}
         onClose={() => {
-          setIsMaxPhotosNoticeOpen(false);
+          setIsNameDialogOpen(false);
         }}
-        onSelectImages={() => {
-          setHasSeenMaxPhotosNotice(true);
+        onSetName={(name: string) => {
+          onSetName(name);
           inputRef.current?.click();
         }}
       />
