@@ -196,7 +196,7 @@ export function SelectImages({
             onClick={onAddNoteClick}
           >
             <NotebookPen size={20} />
-            Leave a note
+            Add a note
           </Button>
         </div>
       </>
@@ -230,7 +230,7 @@ export function SelectImages({
             onClick={onAddNoteClick}
           >
             <NotebookPen size={20} />
-            Leave a note
+            Add a note
           </Button>
         </div>
       </>

@@ -14,6 +14,10 @@
   position: relative;
   overflow: hidden;
   border-radius: 8px;
+  animation: appear 0.4s 0.2s backwards;
+  /*box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.2);*/
+}
+.image-gallery > li:not(:has(img)) {
   animation: shimmer 20s linear infinite, appear 0.4s 0.2s backwards;
   background-image: linear-gradient(
     to right,
@@ -21,7 +25,7 @@
     #2f2929 50%,
     #282222 100%
   );
-  box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.2);
+  /*box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.2);*/
 }
 
 .image-gallery::after {
