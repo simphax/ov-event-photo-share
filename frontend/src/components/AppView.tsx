@@ -91,6 +91,8 @@ export const AppView: React.FC = () => {
     undefined
   );
 
+  const [remoteGalleryCount, setRemoteGalleryCount] = useState<number>(0);
+
   const [pendingImageItems, setPendingImageItems] = useState<ImageItem[]>([]);
 
   const [allImageItems, setAllImageItems] = useState<ImageItem[]>([]);
@@ -272,6 +274,8 @@ export const AppView: React.FC = () => {
           ...currentItems,
         ]);
 
+        setRemoteGalleryCount(remoteGalleryCount + 1);
+
         setSuccessType("photo");
       })
       .catch((error) => {
@@ -326,6 +330,7 @@ export const AppView: React.FC = () => {
           array.filter((item) => item.id !== imageItem.id);
 
         setAllImageItems(filterItems);
+        setRemoteGalleryCount(remoteGalleryCount - 1);
         toast.success("Image deleted");
       } catch (error) {
         setAllImageItems((currentItems) =>
@@ -336,7 +341,7 @@ export const AppView: React.FC = () => {
         console.error("Could not delete image", error);
       }
     },
-    [allImageItems]
+    [allImageItems, remoteGalleryCount]
   );
 
   const deleteNote = useCallback(
@@ -355,6 +360,7 @@ export const AppView: React.FC = () => {
           array.filter((item) => item.id !== note.id);
 
         setAllNotes(filterNotes);
+        setRemoteGalleryCount(remoteGalleryCount - 1);
         toast.success("Note deleted");
       } catch (error) {
         setAllNotes((currentNotes) =>
@@ -365,7 +371,7 @@ export const AppView: React.FC = () => {
         console.error("Could not delete note", error);
       }
     },
-    [allNotes]
+    [allNotes, remoteGalleryCount]
   );
 
   //Automatic upload
@@ -532,6 +538,76 @@ export const AppView: React.FC = () => {
     }
   };
 
+  const handleAddNote = useCallback(
+    (note: string, name: string) => {
+      BackendService.addNote(note, name)
+        .then((note) => {
+          const newNote: Note = {
+            id: note.id,
+            content: note.content,
+            userId: note.userId,
+            userName: note.userName,
+            createdDateTime: new Date(note.createdDateTime || 0),
+            loadingDelete: false,
+          };
+          setUserName(note.userName);
+          setUserNames((currentNames) => ({
+            ...currentNames,
+            [note.userId]: note.userName,
+          }));
+          setAllNotes((currentNotes) => [newNote, ...currentNotes]);
+          setSuccessType("note");
+          setRemoteGalleryCount(remoteGalleryCount + 1);
+        })
+        .catch((error) => {
+          console.error("Could not add note", error);
+        });
+      setIsNoteDialogOpen(false);
+    },
+    [remoteGalleryCount]
+  );
+
+  const handleImageClick = useCallback(
+    (imageItem: ImageItem) => {
+      const index = lightboxSlides.findIndex(
+        (item) => item.id === imageItem.id
+      );
+      setCurrentIndex(index);
+      setLightboxOpen(true);
+    },
+    [lightboxSlides]
+  );
+
+  const handleNoteClick = useCallback(
+    (note: Note) => {
+      const index = lightboxSlides.findIndex((item) => item.id === note.id);
+      setCurrentIndex(index);
+      setLightboxOpen(true);
+    },
+    [lightboxSlides]
+  );
+
+  const handleNoteDialogCancel = useCallback(
+    () => setIsNoteDialogOpen(false),
+    []
+  );
+
+  const handleSetName = useCallback(async (name: string) => {
+    try {
+      setUserName(name);
+      await BackendService.setUserName(getUserId(), name);
+      setUserNames((currentNames) => ({
+        ...currentNames,
+        [getUserId()]: getUserName(),
+      }));
+    } catch (error) {
+      console.error("Could not set name", error);
+      setUserName("");
+    }
+  }, []);
+
+  const handleAddNoteClick = useCallback(() => setIsNoteDialogOpen(true), []);
+
   return (
     <div className="pb-10">
       <div className="flex flex-col h-[75vh] justify-between">
@@ -539,9 +615,6 @@ export const AppView: React.FC = () => {
         <div className="flex justify-center mx-auto">
           <Sigill />
         </div>
-        {/* <div className="font-serif text-center text-primary">
-          The Wedding of Simon & Clara
-        </div> */}
         <div className="flex justify-center flex-col px-4">
           <SelectImages
             pendingImageItems={pendingImageItems}
@@ -553,19 +626,8 @@ export const AppView: React.FC = () => {
             combinedProgress={combinedProgress}
             selectImages={selectImages}
             cancelUpload={cancelUpload}
-            onAddNoteClick={() => setIsNoteDialogOpen(true)}
-            onSetName={async (name: string) => {
-              try {
-                await BackendService.setUserName(getUserId(), name);
-                setUserName(name);
-                setUserNames((currentNames) => ({
-                  ...currentNames,
-                  [getUserId()]: getUserName(),
-                }));
-              } catch (error) {
-                console.error("Could not set name", error);
-              }
-            }}
+            onAddNoteClick={handleAddNoteClick}
+            onSetName={handleSetName}
           />
           {uploadInProgress && <Turtle />}
         </div>
@@ -575,22 +637,10 @@ export const AppView: React.FC = () => {
       </div>
       <ImageGallery
         groupedItems={groupedItems}
-        onDeleteImage={(imageItem) => deleteImage(imageItem.id)}
-        onDeleteNote={(note) => deleteNote(note.id)}
         onShowAll={showAllImagesForUser}
         onShowLess={showLessImagesForUser}
-        onImageClick={(imageItem) => {
-          const index = lightboxSlides.findIndex(
-            (item) => item.id === imageItem.id
-          );
-          setCurrentIndex(index);
-          setLightboxOpen(true);
-        }}
-        onNoteClick={(note) => {
-          const index = lightboxSlides.findIndex((item) => item.id === note.id);
-          setCurrentIndex(index);
-          setLightboxOpen(true);
-        }}
+        onImageClick={handleImageClick}
+        onNoteClick={handleNoteClick}
       />
       <Lightbox
         controller={{
@@ -630,34 +680,16 @@ export const AppView: React.FC = () => {
       />
       <NoteDialog
         isOpen={isNoteDialogOpen}
-        onCancel={() => setIsNoteDialogOpen(false)}
+        onCancel={handleNoteDialogCancel}
         userName={userName}
-        onAddNote={(note, name) => {
-          BackendService.addNote(note, name)
-            .then((note) => {
-              const newNote: Note = {
-                id: note.id,
-                content: note.content,
-                userId: note.userId,
-                userName: note.userName,
-                createdDateTime: new Date(note.createdDateTime || 0),
-                loadingDelete: false,
-              };
-              setUserName(note.userName);
-              setUserNames((currentNames) => ({
-                ...currentNames,
-                [note.userId]: note.userName,
-              }));
-              setAllNotes((currentNotes) => [newNote, ...currentNotes]);
-              setSuccessType("note");
-            })
-            .catch((error) => {
-              console.error("Could not add note", error);
-            });
-          setIsNoteDialogOpen(false);
-        }}
+        onAddNote={handleAddNote}
       />
-      <UpdatesNotifier galleryCount={galleryCount} onRefresh={handleRefresh} />
+      <UpdatesNotifier
+        remoteGalleryCount={remoteGalleryCount}
+        setRemoteGalleryCount={setRemoteGalleryCount}
+        galleryCount={galleryCount}
+        onRefresh={handleRefresh}
+      />
       <Toaster containerStyle={{ zIndex: 10000 }} position="bottom-center" />
     </div>
   );

@@ -11,7 +11,7 @@ type UserItemsGridProps = {
   userItem: UserItem;
   hideUploadedBy?: boolean;
   onNoteClick: (note: Note) => void;
-  onImageClick: (imageItem: ImageItem) => void;
+  onImageClick: (imageItemId: ImageItem) => void;
   onShowAll: (userId: string) => void;
   onShowLess: (userId: string) => void;
   renderNoteControls?: (note: Note) => React.ReactNode;
@@ -32,7 +32,8 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
     return (
       <>
         {!hideUploadedBy && (
-          <h2
+          <motion.h2
+            layout
             key={"uploaded-by-title"}
             className={`text-sm mb-3 tracking-wider text-textOnLightbox/90 text-center`}
           >
@@ -42,7 +43,7 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
                 You!
               </span>
             )}
-          </h2>
+          </motion.h2>
         )}
         <motion.ul layout key={"all-photos-list"} className="image-gallery">
           {userItem.notes.map((note, index) => (

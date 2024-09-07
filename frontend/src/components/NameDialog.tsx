@@ -66,12 +66,12 @@ export const NameDialog = ({
                       onChange={(e) => setName(e.target.value)}
                     />
                   </Field>
-                  <Button
+                  <button
                     className="bg-primary/10 rounded-full px-8 h-14 w-full mb-2"
                     onClick={() => onSetName(name)}
                   >
                     Select photos
-                  </Button>
+                  </button>
                   <Button className="px-8 h-14 w-full" onClick={onClose}>
                     Cancel
                   </Button>

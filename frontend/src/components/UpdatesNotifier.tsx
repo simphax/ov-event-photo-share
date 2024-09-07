@@ -4,15 +4,17 @@ import { Dot, RefreshCw } from "lucide-react";
 
 export type UpdatesNotifierProps = {
   galleryCount: number;
+  remoteGalleryCount: number;
+  setRemoteGalleryCount: (count: number) => void;
   onRefresh: () => void;
 };
 
 export const UpdatesNotifier = ({
   galleryCount,
   onRefresh,
+  remoteGalleryCount,
+  setRemoteGalleryCount,
 }: UpdatesNotifierProps) => {
-  const [remoteGalleryCount, setRemoteGalleryCount] = useState<number>(0);
-
   useEffect(() => {
     console.log("Starting gallery count stream...");
     const eventSource = new EventSource(

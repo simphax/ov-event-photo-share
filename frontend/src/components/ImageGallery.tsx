@@ -11,22 +11,12 @@ const brideGroomUserId = "simonclara";
 
 const ImageGallery: React.FC<{
   groupedItems: UserItem[];
-  onDeleteImage: (imageItem: ImageItem) => void;
   onImageClick: (imageItem: ImageItem) => void;
   onNoteClick: (note: Note) => void;
-  onDeleteNote: (note: Note) => void;
   onShowAll: (userId: string) => void;
   onShowLess: (userId: string) => void;
 }> = memo(
-  ({
-    onDeleteImage,
-    groupedItems,
-    onImageClick,
-    onNoteClick,
-    onDeleteNote,
-    onShowAll,
-    onShowLess,
-  }) => {
+  ({ groupedItems, onImageClick, onNoteClick, onShowAll, onShowLess }) => {
     const brideGroomItems = groupedItems.find(
       (item) => item.userId === brideGroomUserId
     );
