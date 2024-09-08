@@ -15,10 +15,10 @@ body {
 
 .background {
   position: fixed;
-  top: 0;
+  top: -10lvh;
   left: 0;
   width: 120lvw;
-  height: 110lvh;
+  height: 115lvh;
   background-image: url("./background.png");
   background-attachment: scroll;
   background-position: top center;
@@ -29,7 +29,7 @@ body {
 }
 
 .gradient {
-  min-height: 100vh;
+  min-height: 100lvh;
   background-image: linear-gradient(
     to bottom,
     rgba(0, 0, 0, 0) 0vh,

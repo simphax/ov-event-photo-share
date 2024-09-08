@@ -8,7 +8,7 @@ import { NameDialog } from "./NameDialog";
 export const SelectImages = memo(
   ({
     pendingImageItems,
-    setPendingImageItems,
+    onDismissErrorClicked,
     uploadImages,
     uploadInProgress,
     successType,
@@ -20,7 +20,7 @@ export const SelectImages = memo(
     onSetName,
   }: {
     pendingImageItems: ImageItem[];
-    setPendingImageItems: any; // Replace 'any' with the actual type of setPendingImageItems
+    onDismissErrorClicked: () => void;
     uploadImages: any; // Replace 'any' with the actual type of uploadImages
     uploadInProgress: boolean;
     successType: undefined | "photo" | "note";
@@ -41,6 +41,8 @@ export const SelectImages = memo(
       setIsNameDialogOpen(false);
       selectImages(...args);
     };
+
+    const uiProgress = combinedProgress * 0.93 + 3;
 
     if (uploadInProgress) {
       return (
@@ -76,7 +78,7 @@ export const SelectImages = memo(
                 aria-valuenow={combinedProgress}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                style={{ width: combinedProgress + "%" }}
+                style={{ width: uiProgress + "%" }}
               ></div>
             </div>
           </div>
@@ -141,7 +143,7 @@ export const SelectImages = memo(
           <div className="progress-cancel">
             <button
               className="progress-cancel__button"
-              onClick={() => setPendingImageItems([])}
+              onClick={onDismissErrorClicked}
             >
               <div>
                 <svg

@@ -219,83 +219,97 @@ export const AppView: React.FC = () => {
     return () => clearInterval(interval);
   }, [uploadInProgress]);
 
-  const selectImages = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
+  const selectImages = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (!files) return;
 
-    const newPendingImageItems = Array.from(files).map((file) => {
-      const id = uuidv4();
-      return {
-        id,
-        file,
-        thumbnail: {
-          url: URL.createObjectURL(file),
-        },
-        name: file.name,
-        uploadedDateTime: new Date(),
-        userId: getUserId(),
-        uploadProgress: 0,
-        uploadDone: false,
-        error: false,
-        loadingDelete: false,
-      };
-    });
-
-    setPendingImageItems(newPendingImageItems);
-  };
-
-  const upload = useCallback(async (imageItem: ImageItem, file: File) => {
-    const abortController = new AbortController();
-    abortControllers.current[imageItem.id] = abortController;
-    return BackendService.uploadImageItem(
-      file,
-      abortController.signal,
-      (event) => {
-        uploadProgress.current[imageItem.id] = event.loaded / event.total;
-      }
-    )
-      .then((response) => {
-        const { id, image, thumbnail, uploadedDateTime } = response;
-        setPendingImageItems((currentItems) =>
-          currentItems.filter((item) => item.id !== imageItem.id)
-        );
-
-        setAllImageItems((currentItems) => [
-          {
-            ...imageItem,
-            image,
-            thumbnail,
-            uploadedDateTime: new Date(uploadedDateTime),
-            remoteId: id,
-            uploadDone: true,
-            uploadProgress: 100,
-            loadingDelete: false,
+      const newPendingImageItems = Array.from(files).map((file) => {
+        const id = uuidv4();
+        return {
+          id,
+          file,
+          thumbnail: {
+            url: URL.createObjectURL(file),
           },
-          ...currentItems,
-        ]);
-
-        setRemoteGalleryCount(remoteGalleryCount + 1);
-
-        setSuccessType("photo");
-      })
-      .catch((error) => {
-        console.error("Upload error for file", imageItem.name, error);
-        setPendingImageItems((currentItems) =>
-          currentItems.map((item) =>
-            item.id === imageItem.id
-              ? { ...item, error: true, uploadProgress: 0, uploadDone: false }
-              : item
-          )
-        );
+          name: file.name,
+          uploadedDateTime: new Date(),
+          userId: getUserId(),
+          uploadProgress: 0,
+          uploadDone: false,
+          error: false,
+          loadingDelete: false,
+        };
       });
-  }, []);
+
+      setPendingImageItems(newPendingImageItems);
+    },
+    []
+  );
+
+  const upload = useCallback(
+    async (imageItem: ImageItem, file: File) => {
+      const abortController = new AbortController();
+      abortControllers.current[imageItem.id] = abortController;
+      return BackendService.uploadImageItem(
+        file,
+        abortController.signal,
+        (event) => {
+          uploadProgress.current[imageItem.id] = event.loaded / event.total;
+        }
+      )
+        .then((response) => {
+          const { id, image, thumbnail, uploadedDateTime } = response;
+          setPendingImageItems((currentItems) =>
+            currentItems.filter((item) => item.id !== imageItem.id)
+          );
+
+          setAllImageItems((currentItems) => [
+            {
+              ...imageItem,
+              id,
+              image,
+              thumbnail,
+              uploadedDateTime: new Date(uploadedDateTime),
+              remoteId: id,
+              uploadDone: true,
+              uploadProgress: 100,
+              loadingDelete: false,
+            },
+            ...currentItems,
+          ]);
+
+          setRemoteGalleryCount(remoteGalleryCount + 1);
+
+          setSuccessType("photo");
+        })
+        .catch((error) => {
+          console.error("Upload error for file", imageItem.name, error);
+          setPendingImageItems((currentItems) =>
+            currentItems.map((item) =>
+              item.id === imageItem.id
+                ? { ...item, error: true, uploadProgress: 0, uploadDone: false }
+                : item
+            )
+          );
+        });
+    },
+    [remoteGalleryCount]
+  );
 
   const cancelUpload = useCallback(() => {
     for (const [id, controller] of Object.entries(abortControllers.current)) {
       controller.abort();
       delete abortControllers.current[id];
     }
-    setPendingImageItems([]);
+    setPendingImageItems((currentItems) =>
+      currentItems.map((item) => ({
+        ...item,
+        error: true,
+        uploadProgress: 0,
+        uploadDone: false,
+      }))
+    );
     setUploadInProgress(false);
   }, []);
 
@@ -410,17 +424,23 @@ export const AppView: React.FC = () => {
     new Set()
   );
 
-  const showAllImagesForUser = (userId: string) => {
-    const newSet = new Set(usersShowAllImages);
-    newSet.add(userId);
-    setUsersShowAllImages(newSet);
-  };
+  const showAllImagesForUser = useCallback(
+    (userId: string) => {
+      const newSet = new Set(usersShowAllImages);
+      newSet.add(userId);
+      setUsersShowAllImages(newSet);
+    },
+    [usersShowAllImages]
+  );
 
-  const showLessImagesForUser = (userId: string) => {
-    const newSet = new Set(usersShowAllImages);
-    newSet.delete(userId);
-    setUsersShowAllImages(newSet);
-  };
+  const showLessImagesForUser = useCallback(
+    (userId: string) => {
+      const newSet = new Set(usersShowAllImages);
+      newSet.delete(userId);
+      setUsersShowAllImages(newSet);
+    },
+    [usersShowAllImages]
+  );
 
   const groupedItems: UserItem[] = useMemo(() => {
     const groupedItemses: { [key: string]: (Note | ImageItem)[] } =
@@ -540,6 +560,7 @@ export const AppView: React.FC = () => {
 
   const handleAddNote = useCallback(
     (note: string, name: string) => {
+      console.log("handleAddNote");
       BackendService.addNote(note, name)
         .then((note) => {
           const newNote: Note = {
@@ -587,10 +608,10 @@ export const AppView: React.FC = () => {
     [lightboxSlides]
   );
 
-  const handleNoteDialogCancel = useCallback(
-    () => setIsNoteDialogOpen(false),
-    []
-  );
+  const handleNoteDialogCancel = useCallback(() => {
+    console.log("handleNoteDialogCancel");
+    setIsNoteDialogOpen(false);
+  }, []);
 
   const handleSetName = useCallback(async (name: string) => {
     try {
@@ -608,6 +629,11 @@ export const AppView: React.FC = () => {
 
   const handleAddNoteClick = useCallback(() => setIsNoteDialogOpen(true), []);
 
+  const handleDismissErrorClicked = useCallback(() => {
+    setSuccessType(undefined);
+    setPendingImageItems([]);
+  }, []);
+
   return (
     <div className="pb-10">
       <div className="flex flex-col h-[75vh] justify-between">
@@ -618,7 +644,7 @@ export const AppView: React.FC = () => {
         <div className="flex justify-center flex-col px-4">
           <SelectImages
             pendingImageItems={pendingImageItems}
-            setPendingImageItems={setPendingImageItems}
+            onDismissErrorClicked={handleDismissErrorClicked}
             uploadImages={uploadImages}
             uploadInProgress={uploadInProgress}
             successType={successType}
@@ -676,6 +702,32 @@ export const AppView: React.FC = () => {
           slide: ({ slide }) =>
             isNoteSlide(slide) ? <NoteSlide slide={slide} /> : null,
         }}
+        download={{
+          download: async ({ slide, saveAs }) => {
+            if (typeof slide.download !== "object") return;
+
+            try {
+              const { url } = slide.download;
+              const fetchResult = await fetch(url);
+              const blob = await fetchResult.blob();
+              const data = {
+                files: [
+                  new File([blob], "S&C Wedding Guest Photo.jpg", {
+                    type: blob.type,
+                  }),
+                ],
+              };
+              if (!navigator.share || !navigator.canShare(data)) {
+                throw new Error("Can't share data.");
+              }
+              await navigator.share(data);
+            } catch (error) {
+              console.error(error);
+              if (error instanceof Error && error.name === "AbortError") return;
+              toast.error("Could not download");
+            }
+          },
+        }}
         plugins={[Download, Zoom]}
       />
       <NoteDialog
@@ -686,6 +738,7 @@ export const AppView: React.FC = () => {
       />
       <UpdatesNotifier
         remoteGalleryCount={remoteGalleryCount}
+        isUploading={uploadInProgress}
         setRemoteGalleryCount={setRemoteGalleryCount}
         galleryCount={galleryCount}
         onRefresh={handleRefresh}

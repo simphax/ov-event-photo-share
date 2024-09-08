@@ -49,12 +49,13 @@ const ImageGallery: React.FC<{
           {(brideGroomItems?.imageItems.length ||
             brideGroomItems?.notes.length) && (
             <div key="bride-groom-section" className="mt-12">
-              <h2
+              <motion.h2
+                layout
                 key={"bride-groom-title"}
                 className="text-sm my-4 font-semibold tracking-wider"
               >
                 From the Bride and Groom
-              </h2>
+              </motion.h2>
               <UserItemsGrid
                 hideUploadedBy
                 userItem={brideGroomItems}

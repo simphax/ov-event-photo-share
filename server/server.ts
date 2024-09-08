@@ -12,6 +12,7 @@ import { NoteCreateRequestModel } from "../common/types/NoteCreateRequestModel";
 import { constants } from "fs/promises";
 import { GalleryCountResponseModel } from "../common/types/GalleryCountResponseModel";
 import { ErrorResponseModel } from "../common/types/ErrorResponseModel";
+import { ImageItemResponseModel } from "../common/types/ImageItemResponseModel";
 
 const UPLOAD_FOLDER_PATH = process.env.UPLOAD_FOLDER_PATH || "uploads/";
 const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
@@ -147,11 +148,11 @@ const startServer = async () => {
     const resizedImage = await sharpFile
       .rotate()
       .resize(1080, 1920, { fit: "inside" })
-      .webp();
+      .jpeg();
 
     const resizedImageBuffer = await resizedImage.toBuffer();
 
-    const imageFilePath = `${GALLERY_FOLDER_PATH}/${filename}.webp`;
+    const imageFilePath = `${GALLERY_FOLDER_PATH}/${filename}.jpg`;
 
     await fs.writeFile(imageFilePath, resizedImageBuffer);
 
@@ -171,7 +172,7 @@ const startServer = async () => {
     );
 
     return {
-      url: `${SERVER_URL}/gallery/${encodeURIComponent(filename)}.webp`,
+      url: `${SERVER_URL}/gallery/${encodeURIComponent(filename)}.jpg`,
       size: imageMetadata.size,
       width: imageMetadata.width,
       height: imageMetadata.height,
@@ -210,32 +211,32 @@ const startServer = async () => {
           )
         );
 
-        galleryCountCache = undefined;
-
-        return res.status(201).json({
+        const result: ImageItemResponseModel = {
           id: req.file.filename,
           thumbnail: {
             url: thumbnailMetadata.url,
-            size: thumbnailMetadata.size,
-            width: thumbnailMetadata.width,
-            height: thumbnailMetadata.height,
+            width: thumbnailMetadata.width ?? 0,
+            height: thumbnailMetadata.height ?? 0,
           },
           image: {
             url: imageMetadata.url,
-            size: imageMetadata.size,
-            width: imageMetadata.width,
-            height: imageMetadata.height,
+            width: imageMetadata.width ?? 0,
+            height: imageMetadata.height ?? 0,
           },
           user: req.body.user,
+          name: req.file.filename + ".jpg",
           uploadedDateTime,
-          message: "File uploaded successfully",
-        });
+        };
+
+        return res.status(201).json(result);
       } catch (error) {
         console.error(error);
         return res.status(500).json({
           message: "Error creating thumbnail",
           error: JSON.stringify(error),
         });
+      } finally {
+        galleryCountCache = undefined;
       }
     }
   );
@@ -284,18 +285,22 @@ const startServer = async () => {
 
       const imageItems: any[] = files
         .filter((fileName) => fileName.endsWith(".webp"))
-        .map((fileName) => {
+        .map((thumbnailFileName) => {
+          const galleryFileName = thumbnailFileName.replace(".webp", ".jpg");
+
           return {
-            id: fileName.slice(0, -5),
+            id: thumbnailFileName.slice(0, -5),
             thumbnail: {
               url: `${SERVER_URL}/gallery/${encodeURIComponent(
-                fileName
+                thumbnailFileName
               )}?thumbnail`,
             },
             image: {
-              url: `${SERVER_URL}/gallery/${encodeURIComponent(fileName)}`,
+              url: `${SERVER_URL}/gallery/${encodeURIComponent(
+                galleryFileName
+              )}`,
             },
-            name: fileName,
+            name: galleryFileName,
           };
         });
 
@@ -387,7 +392,7 @@ const startServer = async () => {
     try {
       await fs.access(filePath, constants.R_OK);
 
-      res.sendFile(filePath);
+      res.download(filePath);
     } catch (err) {
       console.error(err);
       return res.status(404).send("File not found");
@@ -422,7 +427,7 @@ const startServer = async () => {
     );
     const galleryFilePath = path.resolve(
       GALLERY_FOLDER_PATH,
-      `${fileName}.webp`
+      `${fileName}.jpg`
     );
     const galleryMetadataFilePath = path.resolve(
       GALLERY_FOLDER_PATH,

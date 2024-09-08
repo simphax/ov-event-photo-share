@@ -116,6 +116,11 @@
   display: block;
 }
 
+.appear-delay {
+  animation: 0.3s ease-out 1s appear;
+  animation-fill-mode: backwards;
+}
+
 @keyframes fade-in-expand {
   0% {
     opacity: 0;
