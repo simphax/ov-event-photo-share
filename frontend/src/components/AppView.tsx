@@ -459,7 +459,7 @@ export const AppView: React.FC = () => {
     const indexOfSimonClara = userIdsWithContentArray.indexOf("simonclara");
     if (indexOfSimonClara !== -1) {
       userIdsWithContentArray.splice(indexOfSimonClara, 1);
-      userIdsWithContentArray.unshift("simonclara");
+      userIdsWithContentArray.push("simonclara");
     }
 
     const result = userIdsWithContentArray.map((userId) => {
