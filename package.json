@@ -5,7 +5,7 @@
   "scripts": {
     "install": "",
     "start": "concurrently \"cd frontend && npm start\" \"cd server && npm start\"",
-    "start:prod": "cd build && nodemon --ignore public/ --env-file=.env server.js",
+    "start:prod": "cd build && node --env-file=.env server.js",
     "prebuild": "mkdirp build && mkdirp build/public && mkdirp build/public/uploads && mkdirp build/public/thumbnails && mkdirp build/public/metadata && mkdirp build/public/gallery && mkdirp build/public/notes",
     "build": "npm run build:frontend && npm run build:frontend:copy && npm run build:server && npm run build:server:copy",
     "build:clean": "rimraf build",
@@ -20,6 +20,7 @@
     "concurrently": "^8.2.2",
     "mkdirp": "^3.0.1",
     "ncp": "^2.0.0",
+    "pm2": "^5.4.2",
     "rimraf": "^6.0.1"
   },
   "dependencies": {

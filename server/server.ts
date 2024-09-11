@@ -14,6 +14,8 @@ import { GalleryCountResponseModel } from "../common/types/GalleryCountResponseM
 import { ErrorResponseModel } from "../common/types/ErrorResponseModel";
 import { ImageItemResponseModel } from "../common/types/ImageItemResponseModel";
 
+const TMP_UPLOAD_FOLDER_PATH =
+  process.env.TMP_UPLOAD_FOLDER_PATH || "uploads/tmp/";
 const UPLOAD_FOLDER_PATH = process.env.UPLOAD_FOLDER_PATH || "uploads/";
 const METADATA_FOLDER_PATH = process.env.METADATA_FOLDER_PATH || "metadata/";
 const NOTES_FOLDER_PATH = process.env.NOTES_FOLDER_PATH || "notes/";
@@ -94,14 +96,14 @@ const startServer = async () => {
     file: Express.Multer.File,
     cb: FileFilterCallback
   ) => {
-    if (file.mimetype == "image/jpeg" || file.mimetype == "image/png") {
+    if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
       cb(null, false);
     }
   };
 
-  const upload = multer({ dest: UPLOAD_FOLDER_PATH, fileFilter });
+  const upload = multer({ dest: TMP_UPLOAD_FOLDER_PATH, fileFilter });
 
   const createThumbnail = async (filePath: string) => {
     const filename = path.basename(filePath);
@@ -179,6 +181,46 @@ const startServer = async () => {
     };
   };
 
+  const cleanupAfterError = async (fileName: string) => {
+    try {
+      const thumbnailFilePath = path.resolve(
+        THUMBNAILS_FOLDER_PATH,
+        `${fileName}.webp`
+      );
+      const thumbnailMetadataFilePath = path.resolve(
+        THUMBNAILS_FOLDER_PATH,
+        `${fileName}.json`
+      );
+      const galleryFilePath = path.resolve(
+        GALLERY_FOLDER_PATH,
+        `${fileName}.jpg`
+      );
+      const galleryMetadataFilePath = path.resolve(
+        GALLERY_FOLDER_PATH,
+        `${fileName}.json`
+      );
+      const metadataFilePath = path.resolve(
+        METADATA_FOLDER_PATH,
+        `${fileName}.json`
+      );
+      const originalFilePath = path.resolve(UPLOAD_FOLDER_PATH, fileName);
+      const tmpFilePath = path.resolve(TMP_UPLOAD_FOLDER_PATH, fileName);
+
+      await Promise.all([
+        fs.unlink(thumbnailFilePath),
+        fs.unlink(thumbnailMetadataFilePath),
+        fs.unlink(galleryFilePath),
+        fs.unlink(galleryMetadataFilePath),
+        fs.unlink(metadataFilePath),
+        fs.unlink(originalFilePath),
+        fs.unlink(tmpFilePath),
+      ]);
+    } catch (err) {
+      // Not important
+      console.error("Could not cleanup", err);
+    }
+  };
+
   router.post(
     "/gallery",
     upload.single("file"),
@@ -191,10 +233,16 @@ const startServer = async () => {
           throw new Error("No file uploaded");
         }
 
+        console.log(req.file.path);
+        const filePath = req.file.path.replace("\\tmp", "");
+
+        await fs.rename(req.file.path, filePath);
+        console.log("Moved to: ", filePath);
+
         console.log("Creating thumbnail");
-        const thumbnailMetadata = await createThumbnail(req.file.path);
+        const thumbnailMetadata = await createThumbnail(filePath);
         console.log("Creating gallery image");
-        const imageMetadata = await createGalleryImage(req.file.path);
+        const imageMetadata = await createGalleryImage(filePath);
 
         const uploadedDateTime = new Date().toISOString();
 
@@ -228,10 +276,14 @@ const startServer = async () => {
           uploadedDateTime,
         };
 
-        return res.status(201).json(result);
+        res.status(201).json(result);
+        console.log("Upload done");
       } catch (error) {
         console.error(error);
-        return res.status(500).json({
+
+        if (req.file?.filename) cleanupAfterError(req.file.filename);
+
+        res.status(500).json({
           message: "Error creating thumbnail",
           error: JSON.stringify(error),
         });
