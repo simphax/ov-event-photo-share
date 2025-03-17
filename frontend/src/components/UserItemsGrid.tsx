@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
 import { ImageItem } from "../types/ImageItem";
+import { AudioItem } from "../types/AudioItem";
 import { Note } from "../types/Note";
 import { UserItem } from "../types/UserItem";
-import { ChevronUp } from "lucide-react";
+import { ChevronUp, Mic } from "lucide-react";
 import { memo } from "react";
 import { maxItemsBeforeShowMore } from "./constants";
 import { getUserId } from "../services/UserService";
@@ -12,10 +13,12 @@ type UserItemsGridProps = {
   hideUploadedBy?: boolean;
   onNoteClick: (note: Note) => void;
   onImageClick: (imageItemId: ImageItem) => void;
+  onAudioClick: (audioItem: AudioItem) => void;
   onShowAll: (userId: string) => void;
   onShowLess: (userId: string) => void;
   renderNoteControls?: (note: Note) => React.ReactNode;
   renderImageControls?: (imageItem: ImageItem) => React.ReactNode;
+  renderAudioControls?: (audioItem: AudioItem) => React.ReactNode;
 };
 
 export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
@@ -24,10 +27,12 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
     hideUploadedBy,
     onNoteClick,
     onImageClick,
+    onAudioClick,
     onShowAll,
     onShowLess,
     renderNoteControls,
     renderImageControls,
+    renderAudioControls,
   }) => {
     return (
       <>
@@ -85,6 +90,25 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
                 height={imageItem.thumbnail.height}
               />
               {renderImageControls?.(imageItem)}
+            </motion.li>
+          ))}
+          
+          {userItem.audioItems?.map((audioItem, index) => (
+            <motion.li
+              layout
+              className={`cursor-pointer image-gallery-note image-gallery-audio`}
+              key={audioItem.id}
+              onClick={() => onAudioClick(audioItem)}
+            >
+              <div className="flex flex-col items-center justify-center h-full w-full p-3 bg-primary/5 rounded-lg">
+                <div className="bg-primary rounded-full p-3 mb-2">
+                  <Mic size={24} className="text-primaryText" />
+                </div>
+                <div className="text-xs text-primaryText text-center">
+                  Audio Recording
+                </div>
+              </div>
+              {renderAudioControls?.(audioItem)}
             </motion.li>
           ))}
           {!userItem.isShowingAllItems && (

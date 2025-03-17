@@ -12,6 +12,7 @@ import Lightbox, {
   useLightboxState,
   Slide,
 } from "yet-another-react-lightbox";
+import { SlideAudio } from "./AudioSlide";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import toast, { Toaster } from "react-hot-toast";
@@ -22,9 +23,12 @@ import "./AppView.css";
 import "./ProgressBar.css";
 import { Note } from "../types/Note";
 import { NoteDialog } from "./NoteDialog";
+import { AudioDialog } from "./AudioDialog";
 import { NameDialog } from "./NameDialog";
 import { UserItem } from "../types/UserItem";
 import { isNoteSlide, NoteSlide } from "./NoteSlide";
+import { isAudioSlide, AudioSlide } from "./AudioSlide";
+import { AudioItem } from "../types/AudioItem";
 
 import { Turtle } from "./Turtle";
 import { UpdatesNotifier } from "./UpdatesNotifier";
@@ -87,15 +91,17 @@ const DeleteButton = ({
 };
 
 export const AppView: React.FC = () => {
-  const [successType, setSuccessType] = useState<undefined | "photo" | "note">(
+  const [successType, setSuccessType] = useState<undefined | "photo" | "note" | "audio">(
     undefined
   );
 
   const [remoteGalleryCount, setRemoteGalleryCount] = useState<number>(0);
 
   const [pendingImageItems, setPendingImageItems] = useState<ImageItem[]>([]);
+  const [pendingAudioItems, setPendingAudioItems] = useState<AudioItem[]>([]);
 
   const [allImageItems, setAllImageItems] = useState<ImageItem[]>([]);
+  const [allAudioItems, setAllAudioItems] = useState<AudioItem[]>([]);
   const [pendingImageAngles, setPendingImageAngles] = useState<number[]>([
     0, 0, 0,
   ]);
@@ -110,23 +116,32 @@ export const AppView: React.FC = () => {
   const [userNames, setUserNames] = useState<{ [id: string]: string }>({});
 
   let [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+  let [isAudioDialogOpen, setIsAudioDialogOpen] = useState(false);
 
-  const sortedItems: (Note | ImageItem)[] = useMemo(() => {
-    return [...allNotes, ...allImageItems].sort((a, b) => {
+  const sortedItems: (Note | ImageItem | AudioItem)[] = useMemo(() => {
+    return [...allNotes, ...allImageItems, ...allAudioItems].sort((a, b) => {
       const bDate =
-        (b as Note).createdDateTime || (b as ImageItem).uploadedDateTime;
+        (b as Note).createdDateTime ||
+        (b as ImageItem | AudioItem).uploadedDateTime;
       const aDate =
-        (a as Note).createdDateTime || (a as ImageItem).uploadedDateTime;
+        (a as Note).createdDateTime ||
+        (a as ImageItem | AudioItem).uploadedDateTime;
 
       return bDate.getTime() - aDate.getTime();
     });
-  }, [allImageItems, allNotes]);
+  }, [allImageItems, allNotes, allAudioItems]);
 
   const sortedImageItems = useMemo(() => {
     return [...allImageItems].sort(
       (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
     );
   }, [allImageItems]);
+
+  const sortedAudioItems = useMemo(() => {
+    return [...allAudioItems].sort(
+      (a, b) => b.uploadedDateTime.getTime() - a.uploadedDateTime.getTime()
+    );
+  }, [allAudioItems]);
 
   const sortedNotes = useMemo(() => {
     return [...allNotes].sort(
@@ -138,12 +153,17 @@ export const AppView: React.FC = () => {
 
   const refetchData = useCallback(async () => {
     try {
-      const [notesResponse, imageItemsResponse, usersResponse] =
-        await Promise.all([
-          BackendService.getNotes(),
-          BackendService.getImageItems(),
-          BackendService.getUsers(),
-        ]);
+      const [
+        notesResponse,
+        imageItemsResponse,
+        audioItemsResponse,
+        usersResponse,
+      ] = await Promise.all([
+        BackendService.getNotes(),
+        BackendService.getImageItems(),
+        BackendService.getAudioItems(),
+        BackendService.getUsers(),
+      ]);
 
       const imageItems: ImageItem[] = imageItemsResponse.map(
         ({ id, thumbnail, image, name, user, uploadedDateTime }) => ({
@@ -162,6 +182,23 @@ export const AppView: React.FC = () => {
       );
 
       setAllImageItems(imageItems);
+
+      const audioItems: AudioItem[] = audioItemsResponse.map(
+        ({ id, audio, name, user, uploadedDateTime }) => ({
+          id,
+          remoteId: id,
+          audio,
+          userId: user,
+          uploadedDateTime: new Date(uploadedDateTime || 0),
+          loadingDelete: false,
+          name,
+          uploadProgress: 1,
+          uploadDone: true,
+          error: false,
+        })
+      );
+
+      setAllAudioItems(audioItems);
 
       const notes: Note[] = notesResponse.map(
         ({ id, content, userId, userName, createdDateTime }) => ({
@@ -195,9 +232,23 @@ export const AppView: React.FC = () => {
     refetchData();
   }, [refetchData]);
 
+  // Declare the add audio click handler first, before it's used
+  const handleAddAudioClick = useCallback(() => setIsAudioDialogOpen(true), []);
+
   useEffect(() => {
     refetchData();
-  }, []);
+
+    // Add event listener for audio recording button
+    const handleAudioEvent = () => {
+      handleAddAudioClick();
+    };
+
+    window.addEventListener("add-audio", handleAudioEvent);
+
+    return () => {
+      window.removeEventListener("add-audio", handleAudioEvent);
+    };
+  }, [handleAddAudioClick]);
 
   const updateProgress = () => {
     setPendingImageItems((currentItems) =>
@@ -358,6 +409,37 @@ export const AppView: React.FC = () => {
     [allImageItems, remoteGalleryCount]
   );
 
+  const deleteAudio = useCallback(
+    async (audioItemId: string) => {
+      const audioItem = allAudioItems.find((item) => item.id === audioItemId);
+      if (!audioItem) return;
+      try {
+        setAllAudioItems((currentItems) =>
+          currentItems.map((item) =>
+            item.id === audioItem.id ? { ...item, loadingDelete: true } : item
+          )
+        );
+        if (audioItem.remoteId)
+          await BackendService.deleteAudioItem(audioItem.remoteId);
+
+        const filterItems = (array: AudioItem[]) =>
+          array.filter((item) => item.id !== audioItem.id);
+
+        setAllAudioItems(filterItems);
+        setRemoteGalleryCount(remoteGalleryCount - 1);
+        toast.success("Audio recording deleted");
+      } catch (error) {
+        setAllAudioItems((currentItems) =>
+          currentItems.map((item) =>
+            item.id === audioItem.id ? { ...item, loadingDelete: false } : item
+          )
+        );
+        console.error("Could not delete audio", error);
+      }
+    },
+    [allAudioItems, remoteGalleryCount]
+  );
+
   const deleteNote = useCallback(
     async (noteId: string) => {
       const note = allNotes.find((item) => item.id === noteId);
@@ -443,14 +525,14 @@ export const AppView: React.FC = () => {
   );
 
   const groupedItems: UserItem[] = useMemo(() => {
-    const groupedItemses: { [key: string]: (Note | ImageItem)[] } =
+    const groupedItemses: { [key: string]: (Note | ImageItem | AudioItem)[] } =
       sortedItems.reduce((acc, note) => {
         if (!acc[note.userId]) {
           acc[note.userId] = [];
         }
         acc[note.userId].push(note);
         return acc;
-      }, {} as { [key: string]: (Note | ImageItem)[] });
+      }, {} as { [key: string]: (Note | ImageItem | AudioItem)[] });
 
     const groupedNotes: { [key: string]: Note[] } = sortedNotes.reduce(
       (acc, note) => {
@@ -493,6 +575,7 @@ export const AppView: React.FC = () => {
         userName: userNames[userId] || "Anonymous",
         notes: groupedNotes[userId] || [],
         imageItems: displayedImageItems,
+        audioItems: sortedAudioItems.filter(audio => audio.userId === userId),
         isShowingAllItems:
           (groupedImageItems[userId] || []).length ===
           displayedImageItems.length,
@@ -513,36 +596,61 @@ export const AppView: React.FC = () => {
     userNames,
   ]);
 
-  const lightboxSlides: (SlideImageExt | SlideNote)[] = useMemo(() => {
-    const mapImageItemToSlide = (imageItem: ImageItem): SlideImageExt => ({
-      id: imageItem.id,
-      userId: imageItem.userId,
-      src: imageItem.image!.url,
-      alt: imageItem.name,
-      download: {
-        url: imageItem.image!.url,
-        filename: imageItem.name,
-      },
-    });
+  const lightboxSlides: (SlideImageExt | SlideNote | SlideAudio)[] =
+    useMemo(() => {
+      const mapImageItemToSlide = (imageItem: ImageItem): SlideImageExt => ({
+        id: imageItem.id,
+        userId: imageItem.userId,
+        src: imageItem.image!.url,
+        alt: imageItem.name,
+        download: {
+          url: imageItem.image!.url,
+          filename: imageItem.name,
+        },
+      });
 
-    const mapNoteToSlide = (note: Note): SlideNote => ({
-      type: "note",
-      id: note.id,
-      userId: note.userId,
-      note: note.content,
-      fromName: note.userName,
-    });
+      const mapNoteToSlide = (note: Note): SlideNote => ({
+        type: "note",
+        id: note.id,
+        userId: note.userId,
+        note: note.content,
+        fromName: note.userName,
+      });
 
-    return groupedItems.flatMap((group) => {
-      const notes = group.notes.map(mapNoteToSlide);
-      const imageItems = group.imageItems.map(mapImageItemToSlide);
-      return [...notes, ...imageItems];
-    });
-  }, [groupedItems]);
+      const mapAudioItemToSlide = (audioItem: AudioItem): SlideAudio => ({
+        type: "audio",
+        id: audioItem.id,
+        userId: audioItem.userId,
+        userName: userNames[audioItem.userId],
+        audio: {
+          url: audioItem.audio!.url,
+          duration: audioItem.audio!.duration,
+        },
+        // Add required properties from base Slide type
+        src: "",
+        alt: "Audio Recording",
+        width: 0,
+        height: 0
+      });
+
+      const allSlides = [];
+
+      for (const group of groupedItems) {
+        const notes = group.notes.map(mapNoteToSlide);
+        const imageItems = group.imageItems.map(mapImageItemToSlide);
+        const audioItems = sortedAudioItems
+          .filter((audio) => audio.userId === group.userId)
+          .map(mapAudioItemToSlide);
+
+        allSlides.push(...notes, ...imageItems, ...audioItems);
+      }
+
+      return allSlides;
+    }, [groupedItems, sortedAudioItems, userNames]);
 
   const galleryCount = useMemo(
-    () => allNotes.length + allImageItems.length,
-    [allNotes, allImageItems]
+    () => allNotes.length + allImageItems.length + allAudioItems.length,
+    [allNotes, allImageItems, allAudioItems]
   );
 
   const deleteImageFromLightbox = async (currentSlide: Slide | undefined) => {
@@ -552,6 +660,10 @@ export const AppView: React.FC = () => {
 
     if (isNoteSlide(currentSlide)) {
       await deleteNote(currentSlide.id);
+    } else if (isAudioSlide(currentSlide)) {
+      // Need to cast to proper type to avoid TypeScript issues
+      const audioSlide = currentSlide as SlideAudio;
+      await deleteAudio(audioSlide.id);
     } else {
       const slide = currentSlide as SlideImageExt;
       await deleteImage(slide.id);
@@ -588,6 +700,96 @@ export const AppView: React.FC = () => {
     [remoteGalleryCount]
   );
 
+  const handleAddAudio = useCallback(
+    (audioBlob: Blob) => {
+      const audioFile = new File([audioBlob], `audio-${Date.now()}.webm`, {
+        type: "audio/webm",
+      });
+
+      const id = uuidv4();
+      const audioURL = URL.createObjectURL(audioBlob);
+
+      // Create temporary audio element to get duration
+      const audio = new Audio(audioURL);
+
+      // Set up a pending audio item
+      const pendingAudioItem: AudioItem = {
+        id,
+        file: audioFile,
+        audio: {
+          url: audioURL,
+        },
+        name: audioFile.name,
+        uploadedDateTime: new Date(),
+        userId: getUserId(),
+        uploadProgress: 0,
+        uploadDone: false,
+        error: false,
+        loadingDelete: false,
+      };
+
+      // Once we can read the metadata, update the item
+      audio.addEventListener("loadedmetadata", () => {
+        setPendingAudioItems([
+          {
+            ...pendingAudioItem,
+            audio: {
+              ...pendingAudioItem.audio!,
+              duration: audio.duration,
+            },
+          },
+        ]);
+
+        // Start upload
+        const abortController = new AbortController();
+        abortControllers.current[id] = abortController;
+
+        BackendService.uploadAudioItem(
+          audioFile,
+          abortController.signal,
+          (event) => {
+            uploadProgress.current[id] = event.loaded / event.total;
+            updateProgress();
+          }
+        )
+          .then((response) => {
+            const { id: remoteId, audio, name, uploadedDateTime } = response;
+            setPendingAudioItems([]);
+
+            setAllAudioItems((currentItems) => [
+              {
+                id: remoteId,
+                remoteId,
+                audio,
+                name,
+                uploadedDateTime: new Date(uploadedDateTime),
+                userId: getUserId(),
+                uploadProgress: 1,
+                uploadDone: true,
+                error: false,
+                loadingDelete: false,
+              },
+              ...currentItems,
+            ]);
+
+            setSuccessType("audio");
+            setRemoteGalleryCount(remoteGalleryCount + 1);
+          })
+          .catch((error) => {
+            console.error("Could not upload audio", error);
+            setPendingAudioItems((items) =>
+              items.map((item) =>
+                item.id === id ? { ...item, error: true } : item
+              )
+            );
+          });
+      });
+
+      setIsAudioDialogOpen(false);
+    },
+    [remoteGalleryCount]
+  );
+
   const handleImageClick = useCallback(
     (imageItem: ImageItem) => {
       const index = lightboxSlides.findIndex(
@@ -607,10 +809,23 @@ export const AppView: React.FC = () => {
     },
     [lightboxSlides]
   );
+  
+  const handleAudioClick = useCallback(
+    (audioItem: AudioItem) => {
+      const index = lightboxSlides.findIndex((item) => item.id === audioItem.id);
+      setCurrentIndex(index);
+      setLightboxOpen(true);
+    },
+    [lightboxSlides]
+  );
 
   const handleNoteDialogCancel = useCallback(() => {
     console.log("handleNoteDialogCancel");
     setIsNoteDialogOpen(false);
+  }, []);
+
+  const handleAudioDialogCancel = useCallback(() => {
+    setIsAudioDialogOpen(false);
   }, []);
 
   const handleSetName = useCallback(async (name: string) => {
@@ -667,6 +882,7 @@ export const AppView: React.FC = () => {
         onShowLess={showLessImagesForUser}
         onImageClick={handleImageClick}
         onNoteClick={handleNoteClick}
+        onAudioClick={handleAudioClick}
       />
       <Lightbox
         controller={{
@@ -676,7 +892,7 @@ export const AppView: React.FC = () => {
         }}
         open={lightboxOpen}
         close={() => setLightboxOpen(false)}
-        slides={lightboxSlides}
+        slides={lightboxSlides as Slide[]}
         index={currentImageIndex}
         on={{ view: ({ index }) => setCurrentIndex(index) }}
         styles={{
@@ -699,8 +915,15 @@ export const AppView: React.FC = () => {
           buttonPrev: () => null,
           buttonNext: () => null,
           buttonZoom: () => null,
-          slide: ({ slide }) =>
-            isNoteSlide(slide) ? <NoteSlide slide={slide} /> : null,
+          slide: ({ slide }) => {
+            if (isNoteSlide(slide)) {
+              return <NoteSlide slide={slide} />;
+            }
+            if (isAudioSlide(slide)) {
+              return <AudioSlide slide={slide} />;
+            }
+            return null;
+          },
         }}
         download={{
           download: async ({ slide, saveAs }) => {
@@ -735,6 +958,12 @@ export const AppView: React.FC = () => {
         onCancel={handleNoteDialogCancel}
         userName={userName}
         onAddNote={handleAddNote}
+      />
+
+      <AudioDialog
+        isOpen={isAudioDialogOpen}
+        onClose={handleAudioDialogCancel}
+        onSave={handleAddAudio}
       />
       <UpdatesNotifier
         remoteGalleryCount={remoteGalleryCount}

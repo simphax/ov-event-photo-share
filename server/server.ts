@@ -13,6 +13,7 @@ import { constants } from "fs/promises";
 import { GalleryCountResponseModel } from "../common/types/GalleryCountResponseModel";
 import { ErrorResponseModel } from "../common/types/ErrorResponseModel";
 import { ImageItemResponseModel } from "../common/types/ImageItemResponseModel";
+import { AudioItemResponseModel } from "../common/types/AudioItemResponseModel";
 
 const TMP_UPLOAD_FOLDER_PATH =
   process.env.TMP_UPLOAD_FOLDER_PATH || "uploads/tmp/";
@@ -22,8 +23,9 @@ const NOTES_FOLDER_PATH = process.env.NOTES_FOLDER_PATH || "notes/";
 const THUMBNAILS_FOLDER_PATH =
   process.env.THUMBNAILS_FOLDER_PATH || "thumbnails/";
 const GALLERY_FOLDER_PATH = process.env.GALLERY_FOLDER_PATH || "gallery/";
+const AUDIO_FOLDER_PATH = process.env.AUDIO_FOLDER_PATH || "audio/";
 const SERVER_PORT = process.env.SERVER_PORT || 5050;
-const SERVER_URL = process.env.SERVER_URL || "http://192.168.1.133:5050";
+const SERVER_URL = process.env.SERVER_URL || "http://localhost:5050";
 const SERVER_BASE_PATH = process.env.SERVER_BASE_PATH || "/";
 const SSL_PRIVATE_KEY_PATH = process.env.SSL_PRIVATE_KEY_PATH || false;
 const SSL_CERTIFICATE_PATH = process.env.SSL_CERTIFICATE_PATH || false;
@@ -35,6 +37,9 @@ const corsOptions: cors.CorsOptions = {
 
 const startServer = async () => {
   sharp.cache(false);
+  
+  // Create directories if they don't exist
+  await fs.mkdir(AUDIO_FOLDER_PATH, { recursive: true });
 
   const app = express();
 
@@ -96,7 +101,8 @@ const startServer = async () => {
     file: Express.Multer.File,
     cb: FileFilterCallback
   ) => {
-    if (file.mimetype.startsWith("image/")) {
+    // Accept both images and audio files
+    if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("audio/")) {
       cb(null, true);
     } else {
       cb(null, false);
@@ -312,14 +318,21 @@ const startServer = async () => {
         return;
       }
 
-      const files = await fs.readdir(THUMBNAILS_FOLDER_PATH);
-      const noteFiles = await fs.readdir(NOTES_FOLDER_PATH);
+      const [thumbnailFiles, noteFiles, audioFiles] = await Promise.all([
+        fs.readdir(THUMBNAILS_FOLDER_PATH),
+        fs.readdir(NOTES_FOLDER_PATH),
+        fs.readdir(AUDIO_FOLDER_PATH)
+      ]);
 
-      const images: any[] = files.filter((fileName) =>
+      const images: any[] = thumbnailFiles.filter((fileName) =>
         fileName.endsWith(".webp")
       );
+      
+      const audios: any[] = audioFiles.filter((fileName) =>
+        fileName.endsWith(".webm")
+      );
 
-      galleryCountCache = images.length + noteFiles.length;
+      galleryCountCache = images.length + noteFiles.length + audios.length;
 
       sendCountUpdatedEvent(galleryCountCache);
     }, 1000);
@@ -329,6 +342,175 @@ const startServer = async () => {
 
       res.end();
     });
+  });
+
+  // Audio upload and retrieval routes
+  router.post(
+    "/audio",
+    upload.single("file"),
+    async (req: Request, res: Response) => {
+      try {
+        if (!req.file) {
+          throw new Error("No file uploaded");
+        }
+        
+        if (!req.file.mimetype.startsWith("audio/")) {
+          throw new Error("Uploaded file is not an audio file");
+        }
+        
+        console.log("Processing audio file:", req.file.path);
+        const filePath = req.file.path.replace("\\tmp", "");
+        
+        await fs.rename(req.file.path, filePath);
+        
+        // Get file stats for size
+        const stats = await fs.stat(filePath);
+        
+        // Save the audio file to the audio directory
+        const audioFilePath = `${AUDIO_FOLDER_PATH}/${req.file.filename}.webm`;
+        await fs.copyFile(filePath, audioFilePath);
+        
+        const uploadedDateTime = new Date().toISOString();
+        
+        // Save metadata
+        await fs.writeFile(
+          `${AUDIO_FOLDER_PATH}/${req.file.filename}.json`,
+          JSON.stringify(
+            {
+              user: req.body.user,
+              uploadedDateTime,
+              size: stats.size,
+              // We can't accurately determine audio duration without specialized libraries
+              // Client will determine this when playing
+              duration: 0, 
+            },
+            null,
+            2
+          )
+        );
+        
+        // Create response
+        const result: AudioItemResponseModel = {
+          id: req.file.filename,
+          user: req.body.user,
+          name: req.file.filename + ".webm",
+          uploadedDateTime,
+          audio: {
+            url: `${SERVER_URL}/audio/${encodeURIComponent(req.file.filename)}.webm`,
+            size: stats.size,
+            duration: 0, // Client will determine duration
+          },
+        };
+        
+        res.status(201).json(result);
+        console.log("Audio upload done");
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({
+          message: "Error processing audio upload",
+          error: JSON.stringify(error),
+        });
+      } finally {
+        galleryCountCache = undefined;
+      }
+    }
+  );
+  
+  router.get("/audio", async (req: Request, res: Response) => {
+    try {
+      const files = await fs.readdir(AUDIO_FOLDER_PATH);
+      
+      const audioFiles = files.filter(fileName => fileName.endsWith(".webm"));
+      const audioItems: AudioItemResponseModel[] = [];
+      
+      for (const audioFileName of audioFiles) {
+        const id = audioFileName.slice(0, -5); // Remove .webm
+        
+        try {
+          const metadataPath = `${AUDIO_FOLDER_PATH}/${id}.json`;
+          const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
+          
+          audioItems.push({
+            id,
+            user: metadata.user || 'anonymous',
+            name: audioFileName,
+            uploadedDateTime: metadata.uploadedDateTime || new Date().toISOString(),
+            audio: {
+              url: `${SERVER_URL}/audio/${encodeURIComponent(audioFileName)}`,
+              size: metadata.size || 0,
+              duration: metadata.duration || 0,
+            },
+          });
+        } catch (err) {
+          console.error(`Error reading metadata for audio ${id}:`, err);
+        }
+      }
+      
+      res.json(audioItems);
+    } catch (err) {
+      console.error("Error listing audio files:", err);
+      res.status(500).send("Unable to list audio files.");
+    }
+  });
+  
+  router.get("/audio/:fileName", async (req: Request, res: Response) => {
+    let fileName = req.params.fileName;
+    
+    // Sanitation
+    fileName = fileName.replace(/(\.\.[\/\\])+/g, "");
+    
+    const filePath = path.resolve(AUDIO_FOLDER_PATH, fileName);
+    
+    if (!filePath.startsWith(path.resolve(AUDIO_FOLDER_PATH))) {
+      return res.status(400).send("Invalid file path.");
+    }
+    
+    try {
+      await fs.access(filePath, constants.R_OK);
+      res.download(filePath);
+    } catch (err) {
+      console.error(err);
+      return res.status(404).send("Audio file not found");
+    }
+  });
+  
+  router.delete("/audio/:id", async (req: Request, res: Response) => {
+    let fileName = `${req.params.id}`;
+    
+    // Sanitation
+    fileName = fileName.replace(/(\.\.[\/\\])+/g, "");
+    
+    const audioFilePath = path.resolve(AUDIO_FOLDER_PATH, `${fileName}.webm`);
+    
+    if (!audioFilePath.startsWith(path.resolve(AUDIO_FOLDER_PATH))) {
+      return res.status(400).send("Invalid file path.");
+    }
+    
+    try {
+      await fs.unlink(audioFilePath);
+      
+      const metadataFilePath = path.resolve(AUDIO_FOLDER_PATH, `${fileName}.json`);
+      const originalFilePath = path.resolve(UPLOAD_FOLDER_PATH, fileName);
+      
+      try {
+        await Promise.all([
+          fs.unlink(metadataFilePath),
+          fs.unlink(originalFilePath),
+        ]);
+      } catch (err) {
+        console.error("Non-critical cleanup error:", err);
+      }
+      
+      galleryCountCache = undefined;
+      
+      return res.status(204).json({
+        id: req.params.id,
+        message: "Audio file deleted successfully",
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(404).send("Audio file not found");
+    }
   });
 
   router.get("/gallery", async (req: Request, res: Response) => {

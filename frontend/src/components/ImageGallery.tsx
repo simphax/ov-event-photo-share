@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageItem } from "../types/ImageItem";
+import { AudioItem } from "../types/AudioItem";
 import { memo, useState } from "react";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { Note } from "../types/Note";
@@ -13,10 +14,11 @@ const ImageGallery: React.FC<{
   groupedItems: UserItem[];
   onImageClick: (imageItem: ImageItem) => void;
   onNoteClick: (note: Note) => void;
+  onAudioClick: (audioItem: AudioItem) => void;
   onShowAll: (userId: string) => void;
   onShowLess: (userId: string) => void;
 }> = memo(
-  ({ groupedItems, onImageClick, onNoteClick, onShowAll, onShowLess }) => {
+  ({ groupedItems, onImageClick, onNoteClick, onAudioClick, onShowAll, onShowLess }) => {
     const brideGroomItems = groupedItems.find(
       (item) => item.userId === brideGroomUserId
     );
@@ -38,6 +40,7 @@ const ImageGallery: React.FC<{
                     userItem={userItem}
                     onImageClick={onImageClick}
                     onNoteClick={onNoteClick}
+                    onAudioClick={onAudioClick}
                     onShowAll={onShowAll}
                     onShowLess={onShowLess}
                   />
@@ -61,6 +64,7 @@ const ImageGallery: React.FC<{
                 userItem={brideGroomItems}
                 onImageClick={onImageClick}
                 onNoteClick={onNoteClick}
+                onAudioClick={onAudioClick}
                 onShowAll={onShowAll}
                 onShowLess={onShowLess}
               />

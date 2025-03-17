@@ -23,7 +23,7 @@ export const SelectImages = memo(
     onDismissErrorClicked: () => void;
     uploadImages: any; // Replace 'any' with the actual type of uploadImages
     uploadInProgress: boolean;
-    successType: undefined | "photo" | "note";
+    successType: undefined | "photo" | "note" | "audio";
     pendingImageAngles: any; // Replace 'any' with the actual type of pendingImageAngles
     combinedProgress: any; // Replace 'any' with the actual type of combinedProgress
     selectImages: any; // Replace 'any' with the actual type of selectImages
@@ -201,7 +201,7 @@ export const SelectImages = memo(
       );
     }
 
-    if (successType === "note") {
+    if (successType === "note" || successType === "audio") {
       return (
         <>
           <div className="flex align-center justify-center text-primaryText">
@@ -265,6 +265,18 @@ export const SelectImages = memo(
         >
           <StickerIcon size={22} />
           Add a note
+        </Button>
+        
+        <Button
+          className="text-primaryText/90 shadow-md h-14  w-52 font-semibold px-10 mx-auto flex gap-3 items-center justify-center bg-primary/60 rounded-full mt-3"
+          onClick={(e) => window.dispatchEvent(new CustomEvent('add-audio'))}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2c-1.7 0-3 1.2-3 2.7v10.6c0 1.5 1.3 2.7 3 2.7s3-1.2 3-2.7V4.7c0-1.5-1.3-2.7-3-2.7z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="18" x2="12" y2="22"/>
+          </svg>
+          Add voice recording
         </Button>
 
         <NameDialog

@@ -1,6 +1,7 @@
 import http from "../http-common";
 import { getUserId } from "./UserService";
 import { ImageItemResponseModel } from "../../../common/types/ImageItemResponseModel";
+import { AudioItemResponseModel } from "../../../common/types/AudioItemResponseModel";
 import { NoteResponseModel } from "../../../common/types/NoteResponseModel";
 import { NoteCreateRequestModel } from "../../../common/types/NoteCreateRequestModel";
 import { UserResponseModel } from "../../../common/types/UserResponseModel";
@@ -104,10 +105,47 @@ const runGalleryCountStream = (onUpdate: (count: number) => void) => {
   };
 };
 
+const uploadAudioItem = async (
+  file: File,
+  abortSignal: AbortSignal,
+  onUploadProgress: (progressEvent: any) => void
+): Promise<AudioItemResponseModel> => {
+  let formData = new FormData();
+
+  formData.append("file", file);
+  formData.append("user", getUserId());
+  formData.append("type", "audio");
+
+  const config = {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+    onUploadProgress,
+    signal: abortSignal,
+  };
+
+  const response = await http.post("/audio", formData, config);
+  return response.data;
+};
+
+const deleteAudioItem = (id: string): Promise<any> => {
+  return http.delete(`/audio/${encodeURIComponent(id)}`);
+};
+
+const getAudioItems = async (): Promise<AudioItemResponseModel[]> => {
+  const response = await http.get("/audio");
+  const data = response.data;
+  return data;
+};
+
 export const BackendService = {
   uploadImageItem,
   deleteImageItem,
   getImageItems,
+
+  uploadAudioItem,
+  deleteAudioItem,
+  getAudioItems,
 
   getNotes,
   addNote,
