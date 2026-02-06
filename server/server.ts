@@ -13,6 +13,80 @@ import { constants } from "fs/promises";
 import { GalleryCountResponseModel } from "../common/types/GalleryCountResponseModel";
 import { ErrorResponseModel } from "../common/types/ErrorResponseModel";
 import { ImageItemResponseModel } from "../common/types/ImageItemResponseModel";
+import ffmpeg, { FfprobeData, FfprobeStream } from "fluent-ffmpeg";
+// @ts-ignore - no types for @ffmpeg-installer/ffmpeg
+import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
+// @ts-ignore - no types for @ffprobe-installer/ffprobe
+import ffprobeInstaller from "@ffprobe-installer/ffprobe";
+
+// Set FFmpeg and FFprobe paths from installers
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+ffmpeg.setFfprobePath(ffprobeInstaller.path);
+
+// Video configuration
+const ALLOWED_VIDEO_TYPES = [
+  "video/mp4",
+  "video/quicktime", // .mov
+  "video/x-msvideo", // .avi
+  "video/webm",
+  "video/x-matroska", // .mkv
+];
+const MAX_VIDEO_DURATION_SECONDS = 120; // 2 minutes
+const MAX_VIDEO_SIZE_MB = 100;
+
+// Helper to check if file is video
+const isVideoFile = (mimetype: string): boolean => {
+  return ALLOWED_VIDEO_TYPES.includes(mimetype) || mimetype.startsWith("video/");
+};
+
+// Get file extension from mimetype
+const getFileExtension = (mimetype: string, originalname?: string): string => {
+  // Try to get extension from original filename first
+  if (originalname) {
+    const ext = path.extname(originalname).toLowerCase();
+    if (ext) return ext;
+  }
+
+  // Fallback to mimetype mapping
+  const mimeToExt: { [key: string]: string } = {
+    "video/mp4": ".mp4",
+    "video/quicktime": ".mov",
+    "video/x-msvideo": ".avi",
+    "video/webm": ".webm",
+    "video/x-matroska": ".mkv",
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/bmp": ".bmp",
+    "image/tiff": ".tiff",
+  };
+
+  return mimeToExt[mimetype] || (mimetype.startsWith("video/") ? ".mp4" : ".jpg");
+};
+
+// Get video metadata (duration, dimensions)
+const getVideoMetadata = (
+  filePath: string
+): Promise<{ duration: number; width: number; height: number }> => {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err: Error | null, metadata: FfprobeData) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      const videoStream = metadata.streams.find(
+        (s: FfprobeStream) => s.codec_type === "video"
+      );
+      resolve({
+        duration: metadata.format.duration || 0,
+        width: videoStream?.width || 0,
+        height: videoStream?.height || 0,
+      });
+    });
+  });
+};
 
 const TMP_UPLOAD_FOLDER_PATH =
   process.env.TMP_UPLOAD_FOLDER_PATH || "uploads/tmp/";
@@ -98,15 +172,23 @@ const startServer = async () => {
   ) => {
     if (file.mimetype.startsWith("image/")) {
       cb(null, true);
+    } else if (isVideoFile(file.mimetype)) {
+      cb(null, true);
     } else {
       cb(null, false);
     }
   };
 
-  const upload = multer({ dest: TMP_UPLOAD_FOLDER_PATH, fileFilter });
+  const upload = multer({
+    dest: TMP_UPLOAD_FOLDER_PATH,
+    fileFilter,
+    limits: {
+      fileSize: MAX_VIDEO_SIZE_MB * 1024 * 1024, // 100MB
+    },
+  });
 
   const createThumbnail = async (filePath: string) => {
-    const filename = path.basename(filePath);
+    const filename = path.basename(filePath, path.extname(filePath)); // Remove extension
     const sharpFile = await sharp(filePath);
     const resizedImage = await sharpFile
       .rotate()
@@ -145,7 +227,7 @@ const startServer = async () => {
   };
 
   const createGalleryImage = async (filePath: string) => {
-    const filename = path.basename(filePath);
+    const filename = path.basename(filePath, path.extname(filePath)); // Remove extension
     const sharpFile = await sharp(filePath);
     const resizedImage = await sharpFile
       .rotate()
@@ -181,40 +263,163 @@ const startServer = async () => {
     };
   };
 
+  // Create thumbnail from video by extracting a frame
+  const createVideoThumbnail = async (
+    filePath: string
+  ): Promise<{
+    url: string;
+    width?: number;
+    height?: number;
+  }> => {
+    const filename = path.basename(filePath, path.extname(filePath)); // Remove extension
+    const tempPngPath = `${THUMBNAILS_FOLDER_PATH}/${filename}.png`;
+    const finalWebpPath = `${THUMBNAILS_FOLDER_PATH}/${filename}.webp`;
+
+    // Get video duration to pick a good frame
+    const metadata = await getVideoMetadata(filePath);
+    const timestampSeconds = Math.min(1, metadata.duration * 0.1);
+
+    return new Promise((resolve, reject) => {
+      ffmpeg(filePath)
+        .inputOptions([
+          "-ignore_unknown", // Ignore streams with unknown/unsupported codecs (like Dolby Vision layer)
+        ])
+        .outputOptions([
+          "-map 0:v:0", // Map only the first video stream (ignores Dolby Vision enhancement layer)
+          `-ss ${timestampSeconds}`, // Seek to timestamp
+          "-vframes 1", // Extract one frame
+          "-vf scale=400:-2", // Scale width to 400, maintain aspect (divisible by 2)
+        ])
+        .output(tempPngPath)
+        .on("end", async () => {
+          try {
+            // Convert PNG to WebP using Sharp for consistency with image thumbnails
+            const sharpFile = sharp(tempPngPath);
+            const resizedImage = sharpFile
+              .resize(200, 200, { fit: "inside" })
+              .webp();
+
+            const buffer = await resizedImage.toBuffer();
+            await fs.writeFile(finalWebpPath, new Uint8Array(buffer));
+            await fs.unlink(tempPngPath).catch(() => {}); // Remove temp PNG
+
+            const thumbnailMetadata = await sharp(finalWebpPath).metadata();
+
+            await fs.writeFile(
+              `${THUMBNAILS_FOLDER_PATH}/${filename}.json`,
+              JSON.stringify(
+                {
+                  size: thumbnailMetadata.size,
+                  width: thumbnailMetadata.width,
+                  height: thumbnailMetadata.height,
+                },
+                null,
+                2
+              )
+            );
+
+            resolve({
+              url: `${SERVER_URL}/gallery/${encodeURIComponent(
+                filename
+              )}.webp?thumbnail`,
+              width: thumbnailMetadata.width,
+              height: thumbnailMetadata.height,
+            });
+          } catch (err) {
+            reject(err);
+          }
+        })
+        .on("error", reject)
+        .run();
+    });
+  };
+
+  // Convert video to web-friendly H.264 MP4
+  const createGalleryVideo = async (
+    filePath: string
+  ): Promise<{
+    url: string;
+    width: number;
+    height: number;
+    duration: number;
+  }> => {
+    const filename = path.basename(filePath, path.extname(filePath)); // Remove extension
+    const outputPath = `${GALLERY_FOLDER_PATH}/${filename}.mp4`;
+
+    return new Promise((resolve, reject) => {
+      ffmpeg(filePath)
+        .inputOptions([
+          "-ignore_unknown", // Ignore streams with unknown/unsupported codecs (like Dolby Vision layer)
+        ])
+        .outputOptions([
+          "-map 0:v:0", // Map only the first video stream (ignores Dolby Vision enhancement layer)
+          "-map 0:a:0?", // Map first audio stream if it exists (optional)
+          "-c:v libx264", // H.264 video codec
+          "-preset fast", // Encoding speed/quality tradeoff
+          "-crf 23", // Constant Rate Factor (quality)
+          "-c:a aac", // AAC audio codec
+          "-b:a 128k", // Audio bitrate
+          "-movflags +faststart", // Web optimization
+          "-vf scale=1080:-2", // Scale to 1080p width, maintain aspect (divisible by 2)
+          "-max_muxing_queue_size 1024",
+        ])
+        .output(outputPath)
+        .on("end", async () => {
+          try {
+            const metadata = await getVideoMetadata(outputPath);
+
+            await fs.writeFile(
+              `${GALLERY_FOLDER_PATH}/${filename}.json`,
+              JSON.stringify(
+                {
+                  width: metadata.width,
+                  height: metadata.height,
+                  duration: metadata.duration,
+                  type: "video",
+                },
+                null,
+                2
+              )
+            );
+
+            resolve({
+              url: `${SERVER_URL}/gallery/${encodeURIComponent(filename)}.mp4`,
+              width: metadata.width,
+              height: metadata.height,
+              duration: metadata.duration,
+            });
+          } catch (err) {
+            reject(err);
+          }
+        })
+        .on("error", reject)
+        .run(); // Actually start the FFmpeg process
+    });
+  };
+
   const cleanupAfterError = async (fileName: string) => {
     try {
-      const thumbnailFilePath = path.resolve(
-        THUMBNAILS_FOLDER_PATH,
-        `${fileName}.webp`
+      // Try common extensions for upload folder since we now save with extensions
+      const possibleExtensions = [".mp4", ".mov", ".avi", ".webm", ".mkv", ".jpg", ".jpeg", ".png", ".gif", ".webp"];
+      const uploadFiles = possibleExtensions.map(ext =>
+        path.resolve(UPLOAD_FOLDER_PATH, fileName + ext)
       );
-      const thumbnailMetadataFilePath = path.resolve(
-        THUMBNAILS_FOLDER_PATH,
-        `${fileName}.json`
-      );
-      const galleryFilePath = path.resolve(
-        GALLERY_FOLDER_PATH,
-        `${fileName}.jpg`
-      );
-      const galleryMetadataFilePath = path.resolve(
-        GALLERY_FOLDER_PATH,
-        `${fileName}.json`
-      );
-      const metadataFilePath = path.resolve(
-        METADATA_FOLDER_PATH,
-        `${fileName}.json`
-      );
-      const originalFilePath = path.resolve(UPLOAD_FOLDER_PATH, fileName);
-      const tmpFilePath = path.resolve(TMP_UPLOAD_FOLDER_PATH, fileName);
 
-      await Promise.all([
-        fs.unlink(thumbnailFilePath),
-        fs.unlink(thumbnailMetadataFilePath),
-        fs.unlink(galleryFilePath),
-        fs.unlink(galleryMetadataFilePath),
-        fs.unlink(metadataFilePath),
-        fs.unlink(originalFilePath),
-        fs.unlink(tmpFilePath),
-      ]);
+      const filesToClean = [
+        path.resolve(THUMBNAILS_FOLDER_PATH, `${fileName}.webp`),
+        path.resolve(THUMBNAILS_FOLDER_PATH, `${fileName}.png`), // temp video thumbnail
+        path.resolve(THUMBNAILS_FOLDER_PATH, `${fileName}.json`),
+        path.resolve(GALLERY_FOLDER_PATH, `${fileName}.jpg`),
+        path.resolve(GALLERY_FOLDER_PATH, `${fileName}.mp4`), // video file
+        path.resolve(GALLERY_FOLDER_PATH, `${fileName}.json`),
+        path.resolve(METADATA_FOLDER_PATH, `${fileName}.json`),
+        ...uploadFiles,
+        path.resolve(TMP_UPLOAD_FOLDER_PATH, fileName),
+      ];
+
+      await Promise.all(
+        filesToClean.map((f) => fs.unlink(f).catch(() => {}))
+      );
     } catch (err) {
       // Not important
       console.error("Could not cleanup", err);
@@ -233,16 +438,42 @@ const startServer = async () => {
           throw new Error("No file uploaded");
         }
 
-        console.log(req.file.path);
-        const filePath = req.file.path.replace("\\tmp", "");
+        const isVideo = isVideoFile(req.file.mimetype);
+        const fileExtension = getFileExtension(req.file.mimetype, req.file.originalname);
+        console.log(req.file.path, isVideo ? "(video)" : "(image)", fileExtension);
+
+        const baseFilePath = req.file.path.replace("\\tmp", "");
+        const filePath = baseFilePath + fileExtension;
 
         await fs.rename(req.file.path, filePath);
         console.log("Moved to: ", filePath);
 
-        console.log("Creating thumbnail");
-        const thumbnailMetadata = await createThumbnail(filePath);
-        console.log("Creating gallery image");
-        const imageMetadata = await createGalleryImage(filePath);
+        // Validate video duration
+        if (isVideo) {
+          const videoMeta = await getVideoMetadata(filePath);
+          if (videoMeta.duration > MAX_VIDEO_DURATION_SECONDS) {
+            await fs.unlink(filePath);
+            res.status(400).json({
+              message: `Video too long. Maximum duration is ${MAX_VIDEO_DURATION_SECONDS} seconds (${Math.round(MAX_VIDEO_DURATION_SECONDS / 60)} minutes).`,
+            });
+            return;
+          }
+        }
+
+        let thumbnailMetadata;
+        let mediaMetadata: { url: string; width?: number; height?: number; duration?: number };
+
+        if (isVideo) {
+          console.log("Creating video thumbnail");
+          thumbnailMetadata = await createVideoThumbnail(filePath);
+          console.log("Converting video");
+          mediaMetadata = await createGalleryVideo(filePath);
+        } else {
+          console.log("Creating thumbnail");
+          thumbnailMetadata = await createThumbnail(filePath);
+          console.log("Creating gallery image");
+          mediaMetadata = await createGalleryImage(filePath);
+        }
 
         const uploadedDateTime = new Date().toISOString();
 
@@ -253,6 +484,7 @@ const startServer = async () => {
             {
               user: req.body.user,
               uploadedDateTime,
+              type: isVideo ? "video" : "image",
             },
             null,
             2
@@ -261,19 +493,21 @@ const startServer = async () => {
 
         const result: ImageItemResponseModel = {
           id: req.file.filename,
+          type: isVideo ? "video" : "image",
           thumbnail: {
             url: thumbnailMetadata.url,
             width: thumbnailMetadata.width ?? 0,
             height: thumbnailMetadata.height ?? 0,
           },
           image: {
-            url: imageMetadata.url,
-            width: imageMetadata.width ?? 0,
-            height: imageMetadata.height ?? 0,
+            url: mediaMetadata.url,
+            width: mediaMetadata.width ?? 0,
+            height: mediaMetadata.height ?? 0,
           },
           user: req.body.user,
-          name: req.file.filename + ".jpg",
+          name: req.file.filename + (isVideo ? ".mp4" : ".jpg"),
           uploadedDateTime,
+          ...(isVideo && mediaMetadata.duration !== undefined && { duration: mediaMetadata.duration }),
         };
 
         res.status(201).json(result);
@@ -284,7 +518,7 @@ const startServer = async () => {
         if (req.file?.filename) cleanupAfterError(req.file.filename);
 
         res.status(500).json({
-          message: "Error creating thumbnail",
+          message: "Error processing media",
           error: JSON.stringify(error),
         });
       } finally {
@@ -335,88 +569,109 @@ const startServer = async () => {
     try {
       const files = await fs.readdir(THUMBNAILS_FOLDER_PATH);
 
-      const imageItems: any[] = files
+      const mediaItems: any[] = files
         .filter((fileName) => fileName.endsWith(".webp"))
         .map((thumbnailFileName) => {
-          const galleryFileName = thumbnailFileName.replace(".webp", ".jpg");
+          const baseId = thumbnailFileName.slice(0, -5); // Remove .webp
 
           return {
-            id: thumbnailFileName.slice(0, -5),
+            id: baseId,
+            type: "image", // Default, will be updated from metadata
             thumbnail: {
               url: `${SERVER_URL}/gallery/${encodeURIComponent(
                 thumbnailFileName
               )}?thumbnail`,
             },
             image: {
-              url: `${SERVER_URL}/gallery/${encodeURIComponent(
-                galleryFileName
-              )}`,
+              url: "", // Will be set after reading metadata
             },
-            name: galleryFileName,
+            name: "",
           };
         });
 
-      for (let i = 0; i < imageItems.length; i++) {
+      for (let i = 0; i < mediaItems.length; i++) {
+        // First read common metadata to determine type
         try {
           const commonMetadataFileContent = await fs.readFile(
-            METADATA_FOLDER_PATH + "/" + imageItems[i].id + ".json",
+            METADATA_FOLDER_PATH + "/" + mediaItems[i].id + ".json",
             "utf8"
           );
           const commonMetadata = JSON.parse(commonMetadataFileContent);
 
-          imageItems[i] = {
-            ...imageItems[i],
+          const isVideo = commonMetadata.type === "video";
+          const mediaExtension = isVideo ? ".mp4" : ".jpg";
+
+          mediaItems[i] = {
+            ...mediaItems[i],
             ...commonMetadata,
+            type: commonMetadata.type || "image",
+            image: {
+              url: `${SERVER_URL}/gallery/${encodeURIComponent(
+                mediaItems[i].id + mediaExtension
+              )}`,
+            },
+            name: mediaItems[i].id + mediaExtension,
           };
         } catch (err) {
           console.error(err);
           console.error(
-            `Could not get common metadata for ${imageItems[i].id}`
+            `Could not get common metadata for ${mediaItems[i].id}`
           );
+          // Fallback to image
+          mediaItems[i].image = {
+            url: `${SERVER_URL}/gallery/${encodeURIComponent(
+              mediaItems[i].id + ".jpg"
+            )}`,
+          };
+          mediaItems[i].name = mediaItems[i].id + ".jpg";
         }
 
         try {
           const thumbnailMetadataFileContent = await fs.readFile(
-            THUMBNAILS_FOLDER_PATH + "/" + imageItems[i].id + ".json",
+            THUMBNAILS_FOLDER_PATH + "/" + mediaItems[i].id + ".json",
             "utf8"
           );
           const thumbnailMetadata = JSON.parse(thumbnailMetadataFileContent);
 
-          imageItems[i] = {
-            ...imageItems[i],
+          mediaItems[i] = {
+            ...mediaItems[i],
             thumbnail: {
-              ...imageItems[i].thumbnail,
+              ...mediaItems[i].thumbnail,
               ...thumbnailMetadata,
             },
           };
         } catch (err) {
           console.error(err);
           console.error(
-            `Could not get thumbnail metadata for ${imageItems[i].id}`
+            `Could not get thumbnail metadata for ${mediaItems[i].id}`
           );
         }
 
         try {
-          const imageMetadataFileContent = await fs.readFile(
-            GALLERY_FOLDER_PATH + "/" + imageItems[i].id + ".json",
+          const mediaMetadataFileContent = await fs.readFile(
+            GALLERY_FOLDER_PATH + "/" + mediaItems[i].id + ".json",
             "utf8"
           );
-          const imageMetadata = JSON.parse(imageMetadataFileContent);
+          const mediaMetadata = JSON.parse(mediaMetadataFileContent);
 
-          imageItems[i] = {
-            ...imageItems[i],
+          mediaItems[i] = {
+            ...mediaItems[i],
             image: {
-              ...imageItems[i].image,
-              ...imageMetadata,
+              ...mediaItems[i].image,
+              ...mediaMetadata,
             },
+            // Include duration for videos
+            ...(mediaMetadata.duration !== undefined && {
+              duration: mediaMetadata.duration,
+            }),
           };
         } catch (err) {
           console.error(err);
-          console.error(`Could not get image metadata for ${imageItems[i].id}`);
+          console.error(`Could not get media metadata for ${mediaItems[i].id}`);
         }
       }
 
-      res.json(imageItems);
+      res.json(mediaItems);
     } catch (err) {
       console.error(err);
       return res.status(500).send("Unable to list gallery files.");
@@ -473,36 +728,25 @@ const startServer = async () => {
       return res.status(404).send("File not found");
     }
 
-    const thumbnailMetadataFilePath = path.resolve(
-      THUMBNAILS_FOLDER_PATH,
-      `${fileName}.json`
+    // Delete all associated files (both image and video variants)
+    // Try common extensions for upload folder since files are now saved with extensions
+    const possibleExtensions = [".mp4", ".mov", ".avi", ".webm", ".mkv", ".jpg", ".jpeg", ".png", ".gif", ".webp"];
+    const uploadFiles = possibleExtensions.map(ext =>
+      path.resolve(UPLOAD_FOLDER_PATH, fileName + ext)
     );
-    const galleryFilePath = path.resolve(
-      GALLERY_FOLDER_PATH,
-      `${fileName}.jpg`
-    );
-    const galleryMetadataFilePath = path.resolve(
-      GALLERY_FOLDER_PATH,
-      `${fileName}.json`
-    );
-    const metadataFilePath = path.resolve(
-      METADATA_FOLDER_PATH,
-      `${fileName}.json`
-    );
-    const originalFilePath = path.resolve(UPLOAD_FOLDER_PATH, fileName);
 
-    try {
-      await Promise.all([
-        fs.unlink(thumbnailMetadataFilePath),
-        fs.unlink(galleryFilePath),
-        fs.unlink(galleryMetadataFilePath),
-        fs.unlink(metadataFilePath),
-        fs.unlink(originalFilePath),
-      ]);
-    } catch (err) {
-      console.error(err);
-      // Not important
-    }
+    const filesToDelete = [
+      path.resolve(THUMBNAILS_FOLDER_PATH, `${fileName}.json`),
+      path.resolve(GALLERY_FOLDER_PATH, `${fileName}.jpg`),
+      path.resolve(GALLERY_FOLDER_PATH, `${fileName}.mp4`), // video file
+      path.resolve(GALLERY_FOLDER_PATH, `${fileName}.json`),
+      path.resolve(METADATA_FOLDER_PATH, `${fileName}.json`),
+      ...uploadFiles,
+    ];
+
+    await Promise.all(
+      filesToDelete.map((f) => fs.unlink(f).catch(() => {}))
+    );
 
     galleryCountCache = undefined;
 

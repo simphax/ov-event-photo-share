@@ -1,5 +1,8 @@
+export type MediaType = "image" | "video";
+
 export type ImageItemResponseModel = {
   id: string;
+  type?: MediaType;
   thumbnail: {
     url: string;
     width: number;
@@ -13,4 +16,5 @@ export type ImageItemResponseModel = {
   user: string;
   name: string;
   uploadedDateTime: string;
+  duration?: number; // Video duration in seconds
 };

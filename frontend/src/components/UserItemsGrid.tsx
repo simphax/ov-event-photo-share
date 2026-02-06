@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { ImageItem } from "../types/ImageItem";
 import { Note } from "../types/Note";
 import { UserItem } from "../types/UserItem";
-import { ChevronUp } from "lucide-react";
+import { ChevronUp, Play } from "lucide-react";
 import { memo } from "react";
 import { maxItemsBeforeShowMore } from "./constants";
 import { getUserId } from "../services/UserService";
@@ -66,7 +66,7 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
           {userItem.imageItems.map((imageItem, index) => (
             <motion.li
               layout
-              className={`cursor-pointer image-gallery-image`}
+              className={`cursor-pointer image-gallery-image relative`}
               key={imageItem.id}
               style={{
                 flexGrow: imageItem.thumbnail.width,
@@ -84,6 +84,13 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
                 width={imageItem.thumbnail.width}
                 height={imageItem.thumbnail.height}
               />
+              {imageItem.type === "video" && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="bg-black/50 rounded-full p-2">
+                    <Play className="text-white" size={24} fill="white" />
+                  </div>
+                </div>
+              )}
               {renderImageControls?.(imageItem)}
             </motion.li>
           ))}

@@ -11,9 +11,11 @@ import Lightbox, {
   IconButton,
   useLightboxState,
   Slide,
+  SlideVideo,
 } from "yet-another-react-lightbox";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import Video from "yet-another-react-lightbox/plugins/video";
 import toast, { Toaster } from "react-hot-toast";
 
 import { ReactComponent as Sigill } from "../sigill.svg";
@@ -146,9 +148,10 @@ export const AppView: React.FC = () => {
         ]);
 
       const imageItems: ImageItem[] = imageItemsResponse.map(
-        ({ id, thumbnail, image, name, user, uploadedDateTime }) => ({
+        ({ id, type, thumbnail, image, name, user, uploadedDateTime, duration }) => ({
           id,
           remoteId: id,
+          type: type || "image",
           thumbnail,
           image,
           userId: user,
@@ -158,6 +161,7 @@ export const AppView: React.FC = () => {
           uploadProgress: 1,
           uploadDone: true,
           error: false,
+          duration,
         })
       );
 
@@ -226,9 +230,11 @@ export const AppView: React.FC = () => {
 
       const newPendingImageItems = Array.from(files).map((file) => {
         const id = uuidv4();
+        const isVideo = file.type.startsWith("video/");
         return {
           id,
           file,
+          type: isVideo ? "video" : "image",
           thumbnail: {
             url: URL.createObjectURL(file),
           },
@@ -239,7 +245,7 @@ export const AppView: React.FC = () => {
           uploadDone: false,
           error: false,
           loadingDelete: false,
-        };
+        } as ImageItem;
       });
 
       setPendingImageItems(newPendingImageItems);
@@ -259,7 +265,7 @@ export const AppView: React.FC = () => {
         }
       )
         .then((response) => {
-          const { id, image, thumbnail, uploadedDateTime } = response;
+          const { id, type, image, thumbnail, uploadedDateTime, duration } = response;
           setPendingImageItems((currentItems) =>
             currentItems.filter((item) => item.id !== imageItem.id)
           );
@@ -268,6 +274,7 @@ export const AppView: React.FC = () => {
             {
               ...imageItem,
               id,
+              type: type || "image",
               image,
               thumbnail,
               uploadedDateTime: new Date(uploadedDateTime),
@@ -275,6 +282,7 @@ export const AppView: React.FC = () => {
               uploadDone: true,
               uploadProgress: 100,
               loadingDelete: false,
+              duration,
             },
             ...currentItems,
           ]);
@@ -513,17 +521,41 @@ export const AppView: React.FC = () => {
     userNames,
   ]);
 
-  const lightboxSlides: (SlideImageExt | SlideNote)[] = useMemo(() => {
-    const mapImageItemToSlide = (imageItem: ImageItem): SlideImageExt => ({
-      id: imageItem.id,
-      userId: imageItem.userId,
-      src: imageItem.image!.url,
-      alt: imageItem.name,
-      download: {
-        url: imageItem.image!.url,
-        filename: imageItem.name,
-      },
-    });
+  const lightboxSlides: (SlideImageExt | SlideNote | SlideVideo)[] = useMemo(() => {
+    const mapImageItemToSlide = (
+      imageItem: ImageItem
+    ): SlideImageExt | SlideVideo => {
+      // Handle video items
+      if (imageItem.type === "video") {
+        return {
+          type: "video",
+          poster: imageItem.thumbnail.url,
+          width: imageItem.image?.width,
+          height: imageItem.image?.height,
+          sources: [
+            {
+              src: imageItem.image!.url,
+              type: "video/mp4",
+            },
+          ],
+          // Extended properties for delete functionality
+          id: imageItem.id,
+          userId: imageItem.userId,
+        } as SlideVideo & { id: string; userId: string };
+      }
+
+      // Handle image items
+      return {
+        id: imageItem.id,
+        userId: imageItem.userId,
+        src: imageItem.image!.url,
+        alt: imageItem.name,
+        download: {
+          url: imageItem.image!.url,
+          filename: imageItem.name,
+        },
+      };
+    };
 
     const mapNoteToSlide = (note: Note): SlideNote => ({
       type: "note",
@@ -728,7 +760,12 @@ export const AppView: React.FC = () => {
             }
           },
         }}
-        plugins={[Download, Zoom]}
+        plugins={[Download, Zoom, Video]}
+        video={{
+          autoPlay: true,
+          controls: true,
+          playsInline: true,
+        }}
       />
       <NoteDialog
         isOpen={isNoteDialogOpen}

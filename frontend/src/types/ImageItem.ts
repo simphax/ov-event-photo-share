@@ -1,4 +1,7 @@
+export type MediaType = "image" | "video";
+
 export type ImageItem = {
+  type?: MediaType;
   thumbnail: {
     url: string;
     width?: number;
@@ -19,4 +22,5 @@ export type ImageItem = {
   error: any;
   remoteId?: string;
   file?: File;
+  duration?: number; // Video duration in seconds
 };

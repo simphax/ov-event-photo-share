@@ -1,4 +1,4 @@
-import { Slide, SlideImage, SlideNote } from "yet-another-react-lightbox";
+import { Slide, SlideImage, SlideNote, SlideVideo } from "yet-another-react-lightbox";
 
 declare module "yet-another-react-lightbox" {
   export interface SlideNote extends GenericSlide {
@@ -11,6 +11,11 @@ declare module "yet-another-react-lightbox" {
   export interface SlideImageExt extends SlideImage {
     id: string;
     userId: string;
+  }
+  // Extend SlideVideo to include id and userId for delete functionality
+  export interface SlideVideo {
+    id?: string;
+    userId?: string;
   }
 
   interface SlideTypes {

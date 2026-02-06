@@ -182,7 +182,7 @@ export const SelectImages = memo(
               <input
                 type="file"
                 multiple
-                accept="image/*"
+                accept="image/*,video/mp4,video/quicktime,video/webm,video/*"
                 onChange={selectImages}
                 className="cursor-pointer absolute inset-0 w-full h-full opacity-0"
               />
@@ -216,11 +216,11 @@ export const SelectImages = memo(
               <input
                 type="file"
                 multiple
-                accept="image/*"
+                accept="image/*,video/mp4,video/quicktime,video/webm,video/*"
                 onChange={selectImages}
                 className="cursor-pointer absolute inset-0 w-full h-full opacity-0"
               />
-              Share photos
+              Share media
             </label>
 
             <Button
@@ -250,13 +250,13 @@ export const SelectImages = memo(
           <input
             type="file"
             multiple
-            accept="image/*"
+            accept="image/*,video/mp4,video/quicktime,video/webm,video/*"
             onChange={handleFileInputOnChange}
             className="cursor-pointer absolute inset-0 w-full h-full opacity-0"
             ref={inputRef}
           />
           <PlusIcon size={22} />
-          Share photos
+          Share media
         </label>
 
         <Button
