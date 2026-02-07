@@ -32,8 +32,8 @@ const ALLOWED_VIDEO_TYPES = [
   "video/webm",
   "video/x-matroska", // .mkv
 ];
-const MAX_VIDEO_DURATION_SECONDS = 120; // 2 minutes
-const MAX_VIDEO_SIZE_MB = 100;
+const MAX_VIDEO_DURATION_SECONDS = 60; // 1 minute
+const MAX_VIDEO_SIZE_MB = 600;
 
 // Helper to check if file is video
 const isVideoFile = (mimetype: string): boolean => {
@@ -203,7 +203,7 @@ const startServer = async () => {
 
     const thumbnailFilePath = `${THUMBNAILS_FOLDER_PATH}/${filename}.webp`;
 
-    await fs.writeFile(thumbnailFilePath, resizedImageBuffer);
+    await fs.writeFile(thumbnailFilePath, new Uint8Array(resizedImageBuffer));
 
     const thumbnailMetadata = await sharp(thumbnailFilePath).metadata();
 
@@ -242,7 +242,7 @@ const startServer = async () => {
 
     const imageFilePath = `${GALLERY_FOLDER_PATH}/${filename}.jpg`;
 
-    await fs.writeFile(imageFilePath, resizedImageBuffer);
+    await fs.writeFile(imageFilePath, new Uint8Array(resizedImageBuffer));
 
     const imageMetadata = await sharp(imageFilePath).metadata();
 
@@ -645,8 +645,9 @@ const startServer = async () => {
     res.flushHeaders();
 
     const sendCountUpdatedEvent = (count: number) => {
+      const eventData: GalleryCountResponseModel = { count };
       res.write(`event: countUpdated\n`);
-      res.write(`data: ${JSON.stringify({ count })}\n\n`);
+      res.write(`data: ${JSON.stringify(eventData)}\n\n`);
     };
 
     let interval = setInterval(async () => {
