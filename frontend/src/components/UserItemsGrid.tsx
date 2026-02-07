@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { ImageItem } from "../types/ImageItem";
 import { Note } from "../types/Note";
 import { UserItem } from "../types/UserItem";
-import { ChevronUp, Play } from "lucide-react";
+import { ChevronUp, Play, Loader2 } from "lucide-react";
 import { memo } from "react";
 import { maxItemsBeforeShowMore } from "./constants";
 import { getUserId } from "../services/UserService";
@@ -69,22 +69,39 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
               className={`cursor-pointer image-gallery-image relative`}
               key={imageItem.id}
               style={{
-                flexGrow: imageItem.thumbnail.width,
+                flexGrow: imageItem.thumbnail?.width || 200,
                 width:
-                  ((imageItem.thumbnail.width || 1) /
-                    (imageItem.thumbnail.height || 1)) *
+                  ((imageItem.thumbnail?.width || 200) /
+                    (imageItem.thumbnail?.height || 200)) *
                     100 +
                   "px",
               }}
-              onClick={() => onImageClick(imageItem)}
+              onClick={() => {
+                // Don't open if still processing
+                if (imageItem.status !== "processing") {
+                  onImageClick(imageItem);
+                }
+              }}
             >
-              <img
-                src={imageItem.thumbnail.url}
-                alt={imageItem.name}
-                width={imageItem.thumbnail.width}
-                height={imageItem.thumbnail.height}
-              />
-              {imageItem.type === "video" && (
+              {imageItem.thumbnail ? (
+                <img
+                  src={imageItem.thumbnail.url}
+                  alt={imageItem.name}
+                  width={imageItem.thumbnail.width}
+                  height={imageItem.thumbnail.height}
+                />
+              ) : (
+                <div className="bg-gray-200 w-full h-full min-h-[200px]" />
+              )}
+              {imageItem.status === "processing" && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                  <div className="flex flex-col items-center text-white">
+                    <Loader2 className="animate-spin mb-2" size={32} />
+                    <span className="text-sm">Processing...</span>
+                  </div>
+                </div>
+              )}
+              {imageItem.type === "video" && imageItem.status !== "processing" && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="bg-black/50 rounded-full p-2">
                     <Play className="text-white" size={24} fill="white" />
@@ -102,10 +119,10 @@ export const UserItemsGrid: React.FC<UserItemsGridProps> = memo(
               onClick={() => onShowAll(userItem.userId)}
             >
               <img
-                src={userItem.hiddenItemsPreview.thumbnail.url}
+                src={userItem.hiddenItemsPreview.thumbnail?.url}
                 alt={userItem.hiddenItemsPreview.name}
-                width={userItem.hiddenItemsPreview.thumbnail.width}
-                height={userItem.hiddenItemsPreview.thumbnail.height}
+                width={userItem.hiddenItemsPreview.thumbnail?.width}
+                height={userItem.hiddenItemsPreview.thumbnail?.height}
               />
               <span className="bg-black/80 absolute w-full h-full flex items-center justify-center font-semibold text-primary">
                 +{userItem.hiddenItemsCount}

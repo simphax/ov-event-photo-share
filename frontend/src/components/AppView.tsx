@@ -148,10 +148,11 @@ export const AppView: React.FC = () => {
         ]);
 
       const imageItems: ImageItem[] = imageItemsResponse.map(
-        ({ id, type, thumbnail, image, name, user, uploadedDateTime, duration }) => ({
+        ({ id, type, status, thumbnail, image, name, user, uploadedDateTime, duration }) => ({
           id,
           remoteId: id,
           type: type || "image",
+          status: status || "ready",
           thumbnail,
           image,
           userId: user,
@@ -223,6 +224,26 @@ export const AppView: React.FC = () => {
     return () => clearInterval(interval);
   }, [uploadInProgress]);
 
+  // Auto-refresh gallery when there are items being processed
+  useEffect(() => {
+    const hasProcessingItems = allImageItems.some(
+      (item) => item.status === "processing"
+    );
+
+    if (!hasProcessingItems) return;
+
+    console.log("Items are processing, setting up auto-refresh...");
+    const interval = setInterval(() => {
+      console.log("Auto-refreshing to check processing status...");
+      refetchData();
+    }, 5000); // Check every 5 seconds
+
+    return () => {
+      console.log("Clearing auto-refresh interval");
+      clearInterval(interval);
+    };
+  }, [allImageItems, refetchData]);
+
   const selectImages = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
@@ -265,7 +286,7 @@ export const AppView: React.FC = () => {
         }
       )
         .then((response) => {
-          const { id, type, image, thumbnail, uploadedDateTime, duration } = response;
+          const { id, type, status, image, thumbnail, uploadedDateTime, duration } = response;
           setPendingImageItems((currentItems) =>
             currentItems.filter((item) => item.id !== imageItem.id)
           );
@@ -275,6 +296,7 @@ export const AppView: React.FC = () => {
               ...imageItem,
               id,
               type: type || "image",
+              status: status || "ready",
               image,
               thumbnail,
               uploadedDateTime: new Date(uploadedDateTime),
@@ -524,17 +546,22 @@ export const AppView: React.FC = () => {
   const lightboxSlides: (SlideImageExt | SlideNote | SlideVideo)[] = useMemo(() => {
     const mapImageItemToSlide = (
       imageItem: ImageItem
-    ): SlideImageExt | SlideVideo => {
+    ): SlideImageExt | SlideVideo | null => {
+      // Don't show in lightbox if still processing
+      if (imageItem.status === "processing" || !imageItem.image || !imageItem.thumbnail) {
+        return null;
+      }
+
       // Handle video items
       if (imageItem.type === "video") {
         return {
           type: "video",
           poster: imageItem.thumbnail.url,
-          width: imageItem.image?.width,
-          height: imageItem.image?.height,
+          width: imageItem.image.width,
+          height: imageItem.image.height,
           sources: [
             {
-              src: imageItem.image!.url,
+              src: imageItem.image.url,
               type: "video/mp4",
             },
           ],
@@ -548,10 +575,10 @@ export const AppView: React.FC = () => {
       return {
         id: imageItem.id,
         userId: imageItem.userId,
-        src: imageItem.image!.url,
+        src: imageItem.image.url,
         alt: imageItem.name,
         download: {
-          url: imageItem.image!.url,
+          url: imageItem.image.url,
           filename: imageItem.name,
         },
       };
@@ -567,7 +594,9 @@ export const AppView: React.FC = () => {
 
     return groupedItems.flatMap((group) => {
       const notes = group.notes.map(mapNoteToSlide);
-      const imageItems = group.imageItems.map(mapImageItemToSlide);
+      const imageItems = group.imageItems
+        .map(mapImageItemToSlide)
+        .filter((slide): slide is SlideImageExt | SlideVideo => slide !== null);
       return [...notes, ...imageItems];
     });
   }, [groupedItems]);

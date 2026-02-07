@@ -54,7 +54,7 @@ export const SelectImages = memo(
                 key={imageItem.id}
                 style={
                   {
-                    backgroundImage: `url(${imageItem.thumbnail.url})`,
+                    backgroundImage: `url(${imageItem.thumbnail?.url})`,
                     "--angle": `${pendingImageAngles[index]}deg`,
                   } as React.CSSProperties
                 }
@@ -116,7 +116,7 @@ export const SelectImages = memo(
                 key={imageItem.id}
                 style={
                   {
-                    backgroundImage: `url(${imageItem.thumbnail.url})`,
+                    backgroundImage: `url(${imageItem.thumbnail?.url})`,
                     "--angle": `${pendingImageAngles[index]}deg`,
                   } as React.CSSProperties
                 }

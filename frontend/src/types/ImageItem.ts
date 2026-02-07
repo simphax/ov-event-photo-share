@@ -1,8 +1,10 @@
 export type MediaType = "image" | "video";
+export type ProcessingStatus = "processing" | "ready" | "error";
 
 export type ImageItem = {
   type?: MediaType;
-  thumbnail: {
+  status?: ProcessingStatus;
+  thumbnail?: {
     url: string;
     width?: number;
     height?: number;

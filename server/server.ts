@@ -18,6 +18,7 @@ import ffmpeg, { FfprobeData, FfprobeStream } from "fluent-ffmpeg";
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 // @ts-ignore - no types for @ffprobe-installer/ffprobe
 import ffprobeInstaller from "@ffprobe-installer/ffprobe";
+import PQueue from "p-queue";
 
 // Set FFmpeg and FFprobe paths from installers
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
@@ -106,6 +107,9 @@ const corsOptions: cors.CorsOptions = {
   origin: "*",
   optionsSuccessStatus: 200,
 };
+
+// Processing queue for async media processing (1 item at a time to prevent CPU overload)
+const processingQueue = new PQueue({ concurrency: 1 });
 
 const startServer = async () => {
   sharp.cache(false);
@@ -426,6 +430,76 @@ const startServer = async () => {
     }
   };
 
+  // Helper to update metadata status
+  const updateMetadataStatus = async (
+    itemId: string,
+    updates: {
+      status: "processing" | "ready" | "error";
+      thumbnail?: any;
+      image?: any;
+    }
+  ) => {
+    const metadataPath = `${METADATA_FOLDER_PATH}/${itemId}.json`;
+    try {
+      const existingContent = await fs.readFile(metadataPath, "utf8");
+      const existingMetadata = JSON.parse(existingContent);
+      const updatedMetadata = {
+        ...existingMetadata,
+        ...updates,
+      };
+      await fs.writeFile(metadataPath, JSON.stringify(updatedMetadata, null, 2));
+    } catch (err) {
+      console.error(`Failed to update metadata for ${itemId}:`, err);
+    }
+  };
+
+  // Background worker to process media items
+  const processMediaItem = async (
+    itemId: string,
+    filePath: string,
+    isVideo: boolean
+  ) => {
+    return processingQueue.add(async () => {
+      try {
+        console.log(`[Queue] Processing ${itemId}...`);
+
+        let thumbnailMetadata;
+        let mediaMetadata: {
+          url: string;
+          width?: number;
+          height?: number;
+          duration?: number;
+        };
+
+        if (isVideo) {
+          console.log(`[Queue] Creating video thumbnail for ${itemId}`);
+          thumbnailMetadata = await createVideoThumbnail(filePath);
+          console.log(`[Queue] Converting video for ${itemId}`);
+          mediaMetadata = await createGalleryVideo(filePath);
+        } else {
+          console.log(`[Queue] Creating thumbnail for ${itemId}`);
+          thumbnailMetadata = await createThumbnail(filePath);
+          console.log(`[Queue] Creating gallery image for ${itemId}`);
+          mediaMetadata = await createGalleryImage(filePath);
+        }
+
+        // Update metadata with ready status
+        await updateMetadataStatus(itemId, {
+          status: "ready",
+          thumbnail: thumbnailMetadata,
+          image: mediaMetadata,
+        });
+
+        console.log(`[Queue] Completed ${itemId}`);
+        galleryCountCache = undefined; // Trigger SSE update
+      } catch (error) {
+        console.error(`[Queue] Failed processing ${itemId}:`, error);
+        await updateMetadataStatus(itemId, { status: "error" });
+        // Don't cleanup files on error - keep the upload
+      }
+    });
+  };
+
   router.post(
     "/gallery",
     upload.single("file"),
@@ -448,7 +522,7 @@ const startServer = async () => {
         await fs.rename(req.file.path, filePath);
         console.log("Moved to: ", filePath);
 
-        // Validate video duration
+        // Validate video duration (keep immediate feedback for user)
         if (isVideo) {
           const videoMeta = await getVideoMetadata(filePath);
           if (videoMeta.duration > MAX_VIDEO_DURATION_SECONDS) {
@@ -460,24 +534,10 @@ const startServer = async () => {
           }
         }
 
-        let thumbnailMetadata;
-        let mediaMetadata: { url: string; width?: number; height?: number; duration?: number };
-
-        if (isVideo) {
-          console.log("Creating video thumbnail");
-          thumbnailMetadata = await createVideoThumbnail(filePath);
-          console.log("Converting video");
-          mediaMetadata = await createGalleryVideo(filePath);
-        } else {
-          console.log("Creating thumbnail");
-          thumbnailMetadata = await createThumbnail(filePath);
-          console.log("Creating gallery image");
-          mediaMetadata = await createGalleryImage(filePath);
-        }
-
         const uploadedDateTime = new Date().toISOString();
 
-        console.log("Saving metadata");
+        // Save metadata with "processing" status
+        console.log("Saving metadata with processing status");
         await fs.writeFile(
           `${METADATA_FOLDER_PATH}/${req.file.filename}.json`,
           JSON.stringify(
@@ -485,33 +545,28 @@ const startServer = async () => {
               user: req.body.user,
               uploadedDateTime,
               type: isVideo ? "video" : "image",
+              status: "processing",
             },
             null,
             2
           )
         );
 
+        // Queue background processing (non-blocking)
+        processMediaItem(req.file.filename, filePath, isVideo);
+
+        // Return immediately with processing status
         const result: ImageItemResponseModel = {
           id: req.file.filename,
           type: isVideo ? "video" : "image",
-          thumbnail: {
-            url: thumbnailMetadata.url,
-            width: thumbnailMetadata.width ?? 0,
-            height: thumbnailMetadata.height ?? 0,
-          },
-          image: {
-            url: mediaMetadata.url,
-            width: mediaMetadata.width ?? 0,
-            height: mediaMetadata.height ?? 0,
-          },
+          status: "processing",
           user: req.body.user,
           name: req.file.filename + (isVideo ? ".mp4" : ".jpg"),
           uploadedDateTime,
-          ...(isVideo && mediaMetadata.duration !== undefined && { duration: mediaMetadata.duration }),
         };
 
         res.status(201).json(result);
-        console.log("Upload done");
+        console.log("Upload queued for processing");
       } catch (error) {
         console.error(error);
 
@@ -590,7 +645,7 @@ const startServer = async () => {
         });
 
       for (let i = 0; i < mediaItems.length; i++) {
-        // First read common metadata to determine type
+        // First read common metadata to determine type and status
         try {
           const commonMetadataFileContent = await fs.readFile(
             METADATA_FOLDER_PATH + "/" + mediaItems[i].id + ".json",
@@ -600,24 +655,31 @@ const startServer = async () => {
 
           const isVideo = commonMetadata.type === "video";
           const mediaExtension = isVideo ? ".mp4" : ".jpg";
+          const status = commonMetadata.status || "ready"; // Default to ready for backwards compatibility
 
           mediaItems[i] = {
             ...mediaItems[i],
             ...commonMetadata,
             type: commonMetadata.type || "image",
-            image: {
+            status,
+            name: mediaItems[i].id + mediaExtension,
+          };
+
+          // Only add image URL if processing is complete
+          if (status === "ready") {
+            mediaItems[i].image = {
               url: `${SERVER_URL}/gallery/${encodeURIComponent(
                 mediaItems[i].id + mediaExtension
               )}`,
-            },
-            name: mediaItems[i].id + mediaExtension,
-          };
+            };
+          }
         } catch (err) {
           console.error(err);
           console.error(
             `Could not get common metadata for ${mediaItems[i].id}`
           );
-          // Fallback to image
+          // Fallback to image with ready status
+          mediaItems[i].status = "ready";
           mediaItems[i].image = {
             url: `${SERVER_URL}/gallery/${encodeURIComponent(
               mediaItems[i].id + ".jpg"
@@ -626,48 +688,51 @@ const startServer = async () => {
           mediaItems[i].name = mediaItems[i].id + ".jpg";
         }
 
-        try {
-          const thumbnailMetadataFileContent = await fs.readFile(
-            THUMBNAILS_FOLDER_PATH + "/" + mediaItems[i].id + ".json",
-            "utf8"
-          );
-          const thumbnailMetadata = JSON.parse(thumbnailMetadataFileContent);
+        // Only load thumbnail and media metadata if processing is complete
+        if (mediaItems[i].status === "ready") {
+          try {
+            const thumbnailMetadataFileContent = await fs.readFile(
+              THUMBNAILS_FOLDER_PATH + "/" + mediaItems[i].id + ".json",
+              "utf8"
+            );
+            const thumbnailMetadata = JSON.parse(thumbnailMetadataFileContent);
 
-          mediaItems[i] = {
-            ...mediaItems[i],
-            thumbnail: {
-              ...mediaItems[i].thumbnail,
-              ...thumbnailMetadata,
-            },
-          };
-        } catch (err) {
-          console.error(err);
-          console.error(
-            `Could not get thumbnail metadata for ${mediaItems[i].id}`
-          );
-        }
+            mediaItems[i] = {
+              ...mediaItems[i],
+              thumbnail: {
+                ...mediaItems[i].thumbnail,
+                ...thumbnailMetadata,
+              },
+            };
+          } catch (err) {
+            console.error(err);
+            console.error(
+              `Could not get thumbnail metadata for ${mediaItems[i].id}`
+            );
+          }
 
-        try {
-          const mediaMetadataFileContent = await fs.readFile(
-            GALLERY_FOLDER_PATH + "/" + mediaItems[i].id + ".json",
-            "utf8"
-          );
-          const mediaMetadata = JSON.parse(mediaMetadataFileContent);
+          try {
+            const mediaMetadataFileContent = await fs.readFile(
+              GALLERY_FOLDER_PATH + "/" + mediaItems[i].id + ".json",
+              "utf8"
+            );
+            const mediaMetadata = JSON.parse(mediaMetadataFileContent);
 
-          mediaItems[i] = {
-            ...mediaItems[i],
-            image: {
-              ...mediaItems[i].image,
-              ...mediaMetadata,
-            },
-            // Include duration for videos
-            ...(mediaMetadata.duration !== undefined && {
-              duration: mediaMetadata.duration,
-            }),
-          };
-        } catch (err) {
-          console.error(err);
-          console.error(`Could not get media metadata for ${mediaItems[i].id}`);
+            mediaItems[i] = {
+              ...mediaItems[i],
+              image: {
+                ...mediaItems[i].image,
+                ...mediaMetadata,
+              },
+              // Include duration for videos
+              ...(mediaMetadata.duration !== undefined && {
+                duration: mediaMetadata.duration,
+              }),
+            };
+          } catch (err) {
+            console.error(err);
+            console.error(`Could not get media metadata for ${mediaItems[i].id}`);
+          }
         }
       }
 
