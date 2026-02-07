@@ -433,11 +433,7 @@ const startServer = async () => {
   // Helper to update metadata status
   const updateMetadataStatus = async (
     itemId: string,
-    updates: {
-      status: "processing" | "ready" | "error";
-      thumbnail?: any;
-      image?: any;
-    }
+    status: "processing" | "ready" | "error"
   ) => {
     const metadataPath = `${METADATA_FOLDER_PATH}/${itemId}.json`;
     try {
@@ -445,7 +441,7 @@ const startServer = async () => {
       const existingMetadata = JSON.parse(existingContent);
       const updatedMetadata = {
         ...existingMetadata,
-        ...updates,
+        status,
       };
       await fs.writeFile(metadataPath, JSON.stringify(updatedMetadata, null, 2));
     } catch (err) {
@@ -484,20 +480,77 @@ const startServer = async () => {
         }
 
         // Update metadata with ready status
-        await updateMetadataStatus(itemId, {
-          status: "ready",
-          thumbnail: thumbnailMetadata,
-          image: mediaMetadata,
-        });
+        await updateMetadataStatus(itemId, "ready");
 
         console.log(`[Queue] Completed ${itemId}`);
         galleryCountCache = undefined; // Trigger SSE update
       } catch (error) {
         console.error(`[Queue] Failed processing ${itemId}:`, error);
-        await updateMetadataStatus(itemId, { status: "error" });
+        await updateMetadataStatus(itemId, "error");
         // Don't cleanup files on error - keep the upload
       }
     });
+  };
+
+  // Restore processing queue from disk on startup
+  const restoreProcessingQueue = async () => {
+    try {
+      console.log("[Queue] Scanning for incomplete processing tasks...");
+      const metadataFiles = await fs.readdir(METADATA_FOLDER_PATH);
+
+      let restoredCount = 0;
+      for (const file of metadataFiles) {
+        if (!file.endsWith(".json")) continue;
+
+        try {
+          const metadataPath = `${METADATA_FOLDER_PATH}/${file}`;
+          const content = await fs.readFile(metadataPath, "utf8");
+          const metadata = JSON.parse(content);
+
+          // Re-queue items that were processing when server stopped
+          if (metadata.status === "processing") {
+            const itemId = file.replace(".json", "");
+            const isVideo = metadata.type === "video";
+            const fileExtension = metadata.fileExtension;
+
+            if (!fileExtension) {
+              console.warn(
+                `[Queue] No file extension stored for ${itemId}, marking as error`
+              );
+              await updateMetadataStatus(itemId, "error");
+              continue;
+            }
+
+            // Use the stored file extension to locate the file
+            const actualFilePath = `${UPLOAD_FOLDER_PATH}${itemId}${fileExtension}`;
+
+            try {
+              await fs.access(actualFilePath);
+              console.log(`[Queue] Restoring ${itemId} to processing queue`);
+              processMediaItem(itemId, actualFilePath, isVideo);
+              restoredCount++;
+            } catch {
+              console.warn(
+                `[Queue] Could not find file for ${itemId} at ${actualFilePath}, marking as error`
+              );
+              await updateMetadataStatus(itemId, "error");
+            }
+          }
+        } catch (err) {
+          console.error(`[Queue] Error restoring ${file}:`, err);
+        }
+      }
+
+      if (restoredCount > 0) {
+        console.log(
+          `[Queue] Restored ${restoredCount} items to processing queue`
+        );
+      } else {
+        console.log("[Queue] No incomplete tasks found");
+      }
+    } catch (err) {
+      console.error("[Queue] Error during queue restoration:", err);
+    }
   };
 
   router.post(
@@ -546,6 +599,7 @@ const startServer = async () => {
               uploadedDateTime,
               type: isVideo ? "video" : "image",
               status: "processing",
+              fileExtension, // Store file extension for queue restoration
             },
             null,
             2
@@ -977,6 +1031,9 @@ const startServer = async () => {
   router.use("/", express.static(path.resolve("public")));
 
   app.use(SERVER_BASE_PATH, router);
+
+  // Restore any incomplete processing tasks before starting server
+  await restoreProcessingQueue();
 
   server.listen(SERVER_PORT, () => {
     console.log(`Server started on ${SERVER_PORT}`);
